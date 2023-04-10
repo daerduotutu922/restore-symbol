@@ -233,7 +233,7 @@ void restore_symbol(NSString * inpath, NSString *outpath, NSString *jsonPath, bo
     // must first insert string
     [outData replaceBytesInRange:NSMakeRange(origin_string_table_offset + origin_string_table_size , 0) withBytes:(const void *)string_table_append_data.bytes   length:increase_size_string_tab + string_table_padding];
     
-    [outData replaceBytesInRange:NSMakeRange(origin_symbol_table_offset + origin_dysymbol_table_locsymbol_num * NListSize , 0) withBytes:(const void *)symbol_table_append_data.bytes   length:increase_size_symtab];
+    [outData replaceBytesInRange:NSMakeRange(origin_symbol_table_offset + origin_symbol_table_num * NListSize , 0) withBytes:(const void *)symbol_table_append_data.bytes   length:increase_size_symtab];
     
     NSError * err = nil;
     [outData writeToFile:outpath options:NSDataWritingWithoutOverwriting error:&err];
