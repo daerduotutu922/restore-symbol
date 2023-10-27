@@ -1,10 +1,21 @@
 # restore-symbol
 
+* Update: `20231027`
+* Forked from: https://github.com/HeiTanBc/restore-symbol
+* Changelog
+  * `search_oc_block/ida_search_block.py`
+    * Converted to support [IDA 7.4+](https://hex-rays.com/products/ida/support/ida74_idapython_no_bc695_porting_guide.shtml) (`SegName`->`get_segm_name`, `Qword`->`get_qword`, etc.)
+    * Converted to Python 3.x(`print xxx`->`print(xxx)`, `filter`->`list` etc.)
+    * Fixed bug: `RecursionError: maximum recursion depth exceeded while calling a Python object`
+* TODO
+  * [ ] update `class-dump` to support new load command: `0x80000033`, `0x80000034`
+
+---
+
 A reverse engineering tool to restore stripped symbol table for iOS app.
 
 Example: restore symbol for Alipay
-![](https://raw.githubusercontent.com/tobefuturer/restore-symbol/master/picture/after_restore.jpeg)
-
+![](picture/after_restore.jpeg)
 
 ## How to use
 
@@ -12,43 +23,36 @@ Example: restore symbol for Alipay
 
 - 1. Download source code and compile.
 
-```
-
-git clone --recursive https://github.com/tobefuturer/restore-symbol.git
+```bash
+git clone --recursive https://github.com/crifan/restore-symbol.git
 cd restore-symbol && make
 ./restore-symbol
-
 ```
 
 - 2. Restore symbol using this command. It will output a new mach-o file with symbol.
 
-```
-
+```bash
 ./restore-symbol /pathto/origin_mach_o_file -o /pathto/mach_o_with_symbol 
-
 ```
 
 - 3. Copy the new mach-o file (with symbol) to app bundle, replace the origin mach-o file with new mach-o file. Resign app bundle.
 
-```
-
-codesign -f -s "iPhone Developer: XXXXXXX" --signing-time none --entitlement ./xxxx.app.xcent ./xxxx.app
-
+```bash
+codesign -f -s - --timestamp=none --generate-entitlement-der --entitlement ./xxxx.app.xcent ./xxxx.app
 ```
 
 - 4. Install the app bundle to iOS device, and use lldb to debug the app. Maybe you can use the ```ios-deploy```, or other way you like. If you use ```ios-deploy``` , you can execute this command.
 
-```
-
+```bash
 brew install ios-deploy
 ios-deploy -d -b xxxx.app
-
 ```
+
 - 5. Now you can use ```b -[class method]``` to set breakpoint.
 
 ### Restore symbol of oc block
 
-- 1. Search block symbol in IDA to get json symbol file, using script([`search_oc_block/ida_search_block.py`](https://github.com/tobefuturer/restore-symbol/blob/master/search_oc_block/ida_search_block.py)) .
+- 1. Search block symbol in IDA to get json symbol file, using script([`search_oc_block/ida_search_block.py`](./search_oc_block/ida_search_block.py)) .
 
 ![](http://blog.imjun.net/posts/restore-symbol-of-iOS-app/ida_result_position.png)
 
@@ -56,16 +60,15 @@ ios-deploy -d -b xxxx.app
 
 - 2. Use command line tool(restore-symbol) to inject oc method symbols and block symbols into mach o file.
 
-```
-
+```bash
 ./restore-symbol /pathto/origin_mach_o_file -o /pathto/mach_o_with_symbol -j /pathto/block_symbol.json
-
 ```
 
 - 3. Other steps(resign, install, debug) are samen as above.
 
-## Command Line Usage 
-```
+## Command Line Usage
+
+```bash
 Usage: restore-symbol -o <output-file> [-j <json-symbol-file>] <mach-o-file>
 
   where options are:
