@@ -7,6 +7,7 @@ Changelog:
 1. convert to support IDA 7.4+
 2. convert to Python 3.x
 3. fix bug: "RecursionError: maximum recursion depth exceeded while calling a Python object"
+4. output filename with app and datetime
 
 """
 
@@ -18,6 +19,65 @@ import csv
 import sys
 import json
 
+import os
+from datetime import datetime,timedelta
+from datetime import time  as datetimeTime
+import time
+
+################################################################################
+# Util Function
+################################################################################
+
+# def getFilenameNoPointSuffix(curFilePath):
+#     """Get current filename without point and suffix
+
+#     Args:
+#         curFilePath (str): current file path. Normally can use __file__
+#     Returns:
+#         str, file name without .xxx
+#     Raises:
+#     Examples:
+#         input: /Users/xxx/pymitmdump/mitmdumpOtherApi.py 
+#         output: mitmdumpOtherApi
+#     """
+#     root, pointSuffix = os.path.splitext(curFilePath)
+#     curFilenameNoSuffix = root.split(os.path.sep)[-1]
+#     return curFilenameNoSuffix
+
+def datetimeToStr(inputDatetime, format="%Y%m%d_%H%M%S"):
+    """Convert datetime to string
+
+    Args:
+        inputDatetime (datetime): datetime value
+    Returns:
+        str
+    Raises:
+    Examples:
+        datetime.datetime(2020, 4, 21, 15, 44, 13, 2000) -> '20200421_154413'
+    """
+    datetimeStr = inputDatetime.strftime(format=format)
+    # print("inputDatetime=%s -> datetimeStr=%s" % (inputDatetime, datetimeStr)) # 2020-04-21 15:08:59.787623
+    return datetimeStr
+
+
+def getCurDatetimeStr(outputFormat="%Y%m%d_%H%M%S"):
+    """
+    get current datetime then format to string
+
+    eg:
+        20171111_220722
+
+    :param outputFormat: datetime output format
+    :return: current datetime formatted string
+    """
+    curDatetime = datetime.now() # 2017-11-11 22:07:22.705101
+    # curDatetimeStr = curDatetime.strftime(format=outputFormat) #'20171111_220722'
+    curDatetimeStr = datetimeToStr(curDatetime, format=outputFormat)
+    return curDatetimeStr
+
+################################################################################
+# Main
+################################################################################
 
 IS32BIT = not idaapi.get_inf_structure().is_64bit()
 
@@ -25,6 +85,19 @@ IS_MAC = 'X86_64' in idaapi.get_file_type_name()
 
 # print "Start analyze binary for " + ("Mac" if IS_MAC else "iOS")
 print("Start analyze binary for " + ("Mac" if IS_MAC else "iOS"))
+
+idaRootFilename = get_root_filename()
+print("idaRootFilename=%s" % idaRootFilename)
+# idaInputFilePath = get_input_file_path()
+# print("idaInputFilePath=%s" % idaInputFilePath)
+
+# idaVersion = idaapi.IDA_SDK_VERSION
+# print("idaVersion=%s" % idaVersion)
+
+outputFilename = "block_symbol"
+# outputFullFilename = "%s_%s_%s.json" % (getFilenameNoPointSuffix(__file__), outputFilename, getCurDatetimeStr())
+outputFullFilename = "%s_%s_%s.json" % (idaRootFilename, outputFilename, getCurDatetimeStr())
+print("outputFullFilename=%s" % outputFullFilename)
 
 
 def isInText(x):
@@ -243,7 +316,6 @@ for block_func in allPossibleStackBlockFunc:
     block_name = findBlockName(block_func)
     resultDict[block_func] = block_name
 
-output_file = './block_symbol.json'
 list_output = []
 error_num = 0
 for addr in resultDict:
@@ -255,11 +327,11 @@ for addr in resultDict:
     list_output += [{"address":("0x%X" % addr), "name":name}]
 
 encodeJson = json.dumps(list_output, indent=1)
-f = open(output_file, "w")
+f = open(outputFullFilename, "w")
 f.write(encodeJson)
 f.close()
 
-print("Result file: %s" % output_file)
+print("Result file: %s" % outputFullFilename)
 
 # print 'restore block num %d ' % len(list_output)
 # print 'origin  block num: %d(GlobalBlock: %d, StackBlock: %d)' % (len(allRefToBlock) + len(AllGlobalBlockMap), len(AllGlobalBlockMap), len(allRefToBlock))
