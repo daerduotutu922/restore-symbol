@@ -9,6 +9,7 @@
 #import <Foundation/Foundation.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#import <mach-o/nlist.h>
 #import "CDFile.h"
 #import "CDMachOFile.h"
 #import "CDLCSymbolTable.h"
@@ -34,10 +35,7 @@
 
 
 void restore_symbol(NSString * inpath, NSString *outpath, NSString *jsonPath, bool oc_detect_enable, bool replace_restrict){
-    
-    
-    
-    
+
     if (![[NSFileManager defaultManager] fileExistsAtPath:inpath]) {
         fprintf(stderr, "Error: Input file doesn't exist!\n");
         exit(1);
@@ -108,11 +106,87 @@ void restore_symbol(NSString * inpath, NSString *outpath, NSString *jsonPath, bo
         
         fprintf(stderr, "Scan OC method finish.\n");
     }
-    fprintf(stderr,"restore %d symbols\n", collector.symbols.count);
-    
-    
+
+    NSArray<RSSymbol *> * objcSymbolArr = collector.symbols;
+    NSUInteger objCSymbolCount = objcSymbolArr.count;
+    fprintf(stderr, "restore %ld symbols\n", objCSymbolCount);
+
+    fprintf(stderr, "detecting duplicated symbols ...\n");
+
+    NSMutableArray* omittedSymList = [NSMutableArray array];
+    //    NSDictionary<NSString *, id> *noDupSymDict;
+    NSMutableDictionary* noDupSymDict = [NSMutableDictionary dictionary];
+    for (NSUInteger symIdx = 0; symIdx < objCSymbolCount; symIdx++) {
+        RSSymbol* curSymbol = objcSymbolArr[symIdx];
+        uint64 address = curSymbol.address;
+
+        NSString* name = curSymbol.name;
+        const char* nameStr = [name UTF8String];
+        uint8_t type = curSymbol.type;
+
+//        // for debug
+//        if ( ([name isEqualToString: @"-[_TtC13WAHistorySync17HistorySyncDevice isSyncing]"]) && (type == 0x0E) && (address == 0x1005D206C) ) {
+//            fprintf(stderr, "Odd symbol (check but not exist): [%ld] type=0x%02X, address=0x%llX, name=%s\n", symIdx, type, address, nameStr);
+//        }
+
+        BOOL needAdd = false;
+
+        if (address != 0) {
+//        fprintf(stderr, "[%ld] name=%s, address=%llu, type=%c\n", symIdx, nameStr, address, type);
+//            fprintf(stderr, "[%ld] name=%s, address=%llu, type=0x%02X\n", symIdx, nameStr, address, type);
+//            fprintf(stderr, "[%ld] type=0x%02X, address=%llu, name=%s\n", symIdx, type, address, nameStr);
+
+//            fprintf(stderr, "[%ld] type=0x%02X, address=0x%llX, name=%s\n", symIdx, type, address, nameStr);
+
+            id existSymbolDict = [noDupSymDict objectForKey: name];
+            if(existSymbolDict != nil){
+                NSNumber *existTypeNumber = [existSymbolDict valueForKey: @"type"];
+                char existType = [existTypeNumber charValue];
+                if (existType != N_SECT) {
+                    needAdd = true;
+                } else if (type == N_SECT) {
+                    // both is 0x0E -> but diff address
+                    // eg:
+                    //  type=0x0E, address=0x101449f50, name=-[_TtC13WAHistorySync17HistorySyncDevice isSyncing]
+                    //  type=0x0E, address=0x1005D206C, name=-[_TtC13WAHistorySync17HistorySyncDevice isSyncing]
+                    NSNumber *existAddressNumber = [existSymbolDict valueForKey: @"address"];
+                    uint64 existAddress = [existAddressNumber longLongValue];
+                    if (address != existAddress){
+//                        needAdd = true;
+                        fprintf(stderr, "[%ld] Strage (same name and type, but diff address): type=0x%02X, name=%s -> current address=0x%llX vs existed: address=0x%llX\n", symIdx, type, nameStr, address, existAddress);
+                    }
+                }
+            } else {
+                needAdd = true;
+            }
+        }
+        
+        if(needAdd) {
+            NSNumber *addressNumber = [NSNumber numberWithUnsignedLongLong: address];
+            NSNumber *typeNumber = [NSNumber numberWithChar: type];
+            NSMutableDictionary* curAddressTypeDict = [NSMutableDictionary dictionaryWithObjectsAndKeys: addressNumber, @"address", typeNumber, @"type", nil];
+
+//                NSLog(@"Added: type=0x%02X, address=0x%llX, name=%@", [typeNumber intValue], [addressNumber longLongValue], name);
+//                fprintf(stderr, "Added [%ld] type=0x%02X, address=0x%llX, name=%s\n", symIdx, type, address, nameStr);
+            [noDupSymDict setObject:curAddressTypeDict forKey:name];
+        } else {
+//                fprintf(stderr, "Omit  [%ld] type=0x%02X, address=0x%llX, name=%s\n", symIdx, type, address, nameStr);
+            [omittedSymList addObject:curSymbol];
+        }
+    }
+
+    NSUInteger noDumpObjCSymCount = [[noDupSymDict allKeys] count];
+    NSUInteger omittedObjCSymCount = [omittedSymList count];
+    fprintf(stderr, "noDumpObjCSymCount=%ld, omittedObjCSymCount=%ld\n", noDumpObjCSymCount, omittedObjCSymCount);
+
+    fprintf(stderr, "removing duplicated symbols ...\n");
+    [collector removeSymbols: omittedSymList];
+
+    NSUInteger noDupObjCSymbolCount = [collector.symbols count];
+    fprintf(stderr, "restore non-duplicated %ld symbols\n", noDupObjCSymbolCount);
+
     if (jsonPath != nil && jsonPath.length != 0) {
-        fprintf(stderr, "Parse symbols in json file.\n");
+        fprintf(stderr, "Parse symbols in json file: %s\n", [jsonPath UTF8String]);
         NSData * jsonData = [NSData dataWithContentsOfFile:jsonPath];
         if (jsonData == nil) {
             fprintf(stderr, "Can't load json data.\n");

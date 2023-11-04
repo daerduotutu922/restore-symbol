@@ -27,6 +27,62 @@
 }
 
 
+- (void)removeSymbol:(RSSymbol *)symbol{
+    if ([_symbols containsObject:symbol]){
+        if (symbol.type & N_EXT) {
+            self.extSymbolSize -= 1;
+        } else {
+            self.locSymbolSize -= 1;
+        }
+        
+        [_symbols removeObject: symbol];
+    }
+}
+
+- (void)removeSymbols:(NSArray<RSSymbol *> *)symbols{
+    // Method 1: use removeObjectsInArray
+    NSMutableArray* realToRemoveSymbolList = [NSMutableArray array];
+    long oneTenth = symbols.count / 10;
+    for(int curIdx=0; curIdx < symbols.count; curIdx++){
+        if ( (curIdx > 0) && (curIdx % oneTenth == 0) ) {
+            fprintf(stderr, "process: %d/%ld\n", curIdx, symbols.count);
+        }
+
+        RSSymbol* curSymbol  = symbols[curIdx];
+        if ([_symbols containsObject:curSymbol]){
+            if (curSymbol.type & N_EXT) {
+                self.extSymbolSize -= 1;
+            } else {
+                self.locSymbolSize -= 1;
+            }
+
+//            // for debug
+//            uint8_t type = curSymbol.type;
+//            if ( (type != 0x20) && (type != 0x24) && (type != 0x26) ) {
+//                fprintf(stderr, "Removed [%d] type=0x%02X, address=0x%llX, name=%s\n", curIdx, type, curSymbol.address, [curSymbol.name UTF8String]);
+//            }
+
+            [realToRemoveSymbolList addObject: curSymbol];
+        } else {
+            fprintf(stderr, "Not remove not existed symbol: type=0x%02X, address=0x%llX, name=%s\n", curSymbol.type, curSymbol.address, [curSymbol.name UTF8String]);
+        }
+    }
+
+    [_symbols removeObjectsInArray: realToRemoveSymbolList];
+    fprintf(stderr, "removed %ld symbols\n", [realToRemoveSymbolList count]);
+
+//    // Method 2: remove one by one
+//    for(int curIdx=0; curIdx < symbols.count; curIdx++){
+//        RSSymbol* curSymbol  = symbols[curIdx];
+//        [self removeSymbol: curSymbol];
+//        // for debug
+//        uint8_t type = curSymbol.type;
+//        if ( (type != 0x20) && (type != 0x24) && (type != 0x26) ) {
+//            fprintf(stderr, "Removed [%d] type=0x%02X, address=0x%llX, name=%s\n", curIdx, type, curSymbol.address, [curSymbol.name UTF8String]);
+//        }
+//    }
+}
+
 - (void)addSymbol:(RSSymbol *)symbol{
     if (symbol == nil) {
         return ;
