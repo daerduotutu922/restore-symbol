@@ -12,6 +12,7 @@
 
 #define RS_JSON_KEY_ADDRESS @"address"
 #define RS_JSON_KEY_SYMBOL_NAME @"name"
+#define RS_JSON_KEY_SYMBOL_TYPE @"type"
 
 @interface RSSymbol : NSObject
 

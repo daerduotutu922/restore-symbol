@@ -10,6 +10,11 @@
 
 @implementation RSSymbol
 
+- (NSString *)description
+{
+    NSString* origDesc = [super description];
+    return [NSString stringWithFormat:@"%@ | name=%@, address=0x%llX, type=0x%02X", origDesc, [self name], [self address], [self type]];
+}
 
 + (NSArray<RSSymbol *> *)symbolsWithJson:(NSData *)json{
     NSError * e = nil;
@@ -22,17 +27,30 @@
         return nil;
     }
     
-    NSMutableArray * rt = [NSMutableArray array];
+    NSMutableArray * parsedSymbolList = [NSMutableArray array];
     for (NSDictionary *dict in symbols) {
-        NSString *addressString = dict[RS_JSON_KEY_ADDRESS];
         unsigned long long address;
-        NSScanner* scanner = [NSScanner scannerWithString:addressString];
-        [scanner scanHexLongLong:&address];
-        RSSymbol * symbol = [self symbolWithName:dict[RS_JSON_KEY_SYMBOL_NAME] address:address];
-        [rt addObject:symbol];
+        NSString *addressStr = dict[RS_JSON_KEY_ADDRESS];
+        NSScanner* addrScanner = [NSScanner scannerWithString: addressStr];
+        [addrScanner scanHexLongLong:&address];
+
+        RSSymbol * symbol = nil;
+        NSString *typeStr = dict[RS_JSON_KEY_SYMBOL_TYPE];
+        if (typeStr != nil) {
+            unsigned int typeInt;
+            NSScanner* typeScanner = [NSScanner scannerWithString: typeStr];
+            [typeScanner scanHexInt: &typeInt];
+            unsigned char type = (unsigned char)typeInt;
+
+            symbol = [self symbolWithName:dict[RS_JSON_KEY_SYMBOL_NAME] address:address type:type];
+        } else {
+            symbol = [self symbolWithName:dict[RS_JSON_KEY_SYMBOL_NAME] address:address];
+        }
+//        NSLog(@"parsed symbol: %@", symbol);
+        [parsedSymbolList addObject:symbol];
     }
     
-    return rt;
+    return parsedSymbolList;
 }
 
 

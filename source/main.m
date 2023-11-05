@@ -99,7 +99,7 @@ int main(int argc, char * argv[]) {
             case RS_OPT_DISABLE_OC_DETECT:
                 oc_detect_enable = false;
                 break;
-                
+
             case RS_OPT_REPLACE_RESTRICT:
                 replace_restrict = true;
                 break;
