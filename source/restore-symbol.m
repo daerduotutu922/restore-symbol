@@ -22,8 +22,6 @@
 #import "RSScanMethodVisitor.h"
 #import "CDFatFile.h"
 
-
-
 #define IntSize (Is32Bit? sizeof(uint32_t) : sizeof(uint64_t) )
 #define NListSize (Is32Bit? sizeof(struct nlist) : sizeof(struct nlist_64) )
 
@@ -31,11 +29,7 @@
 #define vm_addr_round(v,r) ( (v + (r-1) ) & (-r) )
 
 
-
-
-
-void restore_symbol(NSString * inpath, NSString *outpath, NSString *jsonPath, bool oc_detect_enable, bool replace_restrict){
-
+void restore_symbol(NSString * inpath, NSString *outpath, NSString* outputObjcSymbolPath, NSString *jsonPath, bool oc_detect_enable, bool replace_restrict){
     if (![[NSFileManager defaultManager] fileExistsAtPath:inpath]) {
         fprintf(stderr, "Error: Input file doesn't exist!\n");
         exit(1);
@@ -45,7 +39,6 @@ void restore_symbol(NSString * inpath, NSString *outpath, NSString *jsonPath, bo
         fprintf(stderr, "Error: Json file doesn't exist!\n");
         exit(1);
     }
-    
     
     if ([outpath length] == 0) {
         fprintf(stderr, "Error: No output file path!\n");
@@ -58,10 +51,8 @@ void restore_symbol(NSString * inpath, NSString *outpath, NSString *jsonPath, bo
     }
     
     fprintf(stderr, "=========== Start =============\n");
-    
-    
+
     NSMutableData * outData = [[NSMutableData alloc] initWithContentsOfFile:inpath];
-    
     CDFile * ofile = [CDFile fileWithContentsOfFile:inpath searchPathState:nil];
     
     if ([ofile isKindOfClass:[CDFatFile class]] ) {
@@ -69,10 +60,8 @@ void restore_symbol(NSString * inpath, NSString *outpath, NSString *jsonPath, bo
         exit(1);
     }
     
-    
     CDMachOFile * machOFile = (CDMachOFile *)ofile;
     const bool Is32Bit = ! machOFile.uses64BitABI;
-    
     
     RSSymbolCollector *collector = [RSSymbolCollector new];
     collector.machOFile = machOFile;
@@ -177,13 +166,41 @@ void restore_symbol(NSString * inpath, NSString *outpath, NSString *jsonPath, bo
 
     NSUInteger noDumpObjCSymCount = [[noDupSymDict allKeys] count];
     NSUInteger omittedObjCSymCount = [omittedSymList count];
-    fprintf(stderr, "noDumpObjCSymCount=%ld, omittedObjCSymCount=%ld\n", noDumpObjCSymCount, omittedObjCSymCount);
+    fprintf(stderr, "non-duplicated symbols: %ld, to remove duplicated symbols: %ld\n", noDumpObjCSymCount, omittedObjCSymCount);
 
     fprintf(stderr, "removing duplicated symbols ...\n");
     [collector removeSymbols: omittedSymList];
 
     NSUInteger noDupObjCSymbolCount = [collector.symbols count];
     fprintf(stderr, "restore non-duplicated %ld symbols\n", noDupObjCSymbolCount);
+
+
+
+    NSLog(@"collector.symbols to json valid: %d", [NSJSONSerialization isValidJSONObject: collector.symbols]);
+    NSLog(@"noDupSymDict to json valid: %d", [NSJSONSerialization isValidJSONObject: noDupSymDict]);
+
+    // convert to valid json object
+    NSMutableArray* validObjcSymJsonList = [NSMutableArray array];
+    for (NSUInteger symIdx = 0; symIdx < [collector.symbols count]; symIdx++) {
+        RSSymbol* curSymbol = collector.symbols[symIdx];
+        NSString *addressStr = [NSString stringWithFormat:@"0x%llX", [curSymbol address]];
+        NSString *typeStr = [NSString stringWithFormat:@"0x%02X", [curSymbol type]];
+        NSMutableDictionary* curJsonItemDict = [NSMutableDictionary dictionaryWithObjectsAndKeys: [curSymbol name], @"name", addressStr, @"address", typeStr, @"type", nil];
+        [validObjcSymJsonList addObject: curJsonItemDict];
+    }
+    NSLog(@"validObjcSymJsonList to json valid: %d", [NSJSONSerialization isValidJSONObject: validObjcSymJsonList]);
+
+//    id toJsonObj = collector.symbols;
+//    id toJsonObj = objcJsonSymList;
+//    id toJsonObj = noDupSymDict;
+    id toJsonObj = validObjcSymJsonList;
+    NSError* toJsonErr = nil;
+    NSData* objcSymJsonData = [NSJSONSerialization dataWithJSONObject: toJsonObj options: NSJSONWritingPrettyPrinted error: &toJsonErr];
+    NSString *objcSymJsonStr = [[NSString alloc] initWithData:objcSymJsonData encoding:NSUTF8StringEncoding];
+    fprintf(stderr, "objc symbol json string: %s\n", [objcSymJsonStr UTF8String]);
+    fprintf(stderr, "Writing objc symbol json string into file: %s\n", [outputObjcSymbolPath UTF8String]);
+    NSError* writeJsonFileErr = nil;
+    [objcSymJsonStr writeToFile:outputObjcSymbolPath atomically:YES encoding:NSUTF8StringEncoding error:&writeJsonFileErr];
 
     if (jsonPath != nil && jsonPath.length != 0) {
         fprintf(stderr, "Parse symbols in json file: %s\n", [jsonPath UTF8String]);
@@ -202,18 +219,14 @@ void restore_symbol(NSString * inpath, NSString *outpath, NSString *jsonPath, bo
         fprintf(stderr, "Parse finish.\n");
     }
     
-    
     NSData *string_table_append_data = nil;
     NSData *symbol_table_append_data = nil;
     [collector generateAppendStringTable:&string_table_append_data appendSymbolTable:&symbol_table_append_data];
-    
     
     uint32 increase_symbol_num = (uint32)collector.symbols.count;
     uint32 increase_size_string_tab = (uint32)string_table_append_data.length;
     uint32 increase_size_symtab = (uint32)symbol_table_append_data.length;
     uint32 increase_size_all_without_padding = increase_size_symtab + increase_size_string_tab;
-    
-    
     
     uint32 origin_string_table_offset = machOFile.symbolTable.stroff;
     uint32 origin_string_table_size = machOFile.symbolTable.strsize;
@@ -222,7 +235,6 @@ void restore_symbol(NSString * inpath, NSString *outpath, NSString *jsonPath, bo
     
     uint32 origin_dysymbol_table_locsymbol_num = machOFile.dynamicSymbolTable.dysymtab.nlocalsym;
 
-    
     if (replace_restrict){
         CDLCSegment * restrict_seg = [machOFile segmentWithName:@"__RESTRICT"];
         
@@ -241,7 +253,6 @@ void restore_symbol(NSString * inpath, NSString *outpath, NSString *jsonPath, bo
         } else {
             fprintf(stderr, "No section (__RESTRICT,__restrict) in mach-o header.\n");
         }
-        
     }
     
     //LC_CODE_SIGNATURE need align 16 byte, so add padding at end of string table.
@@ -282,28 +293,21 @@ void restore_symbol(NSString * inpath, NSString *outpath, NSString *jsonPath, bo
         command -> iundefsym += collector.locSymbolSize + collector.extSymbolSize;
         command -> indirectsymoff += increase_size_symtab;
     }
-    
-    
-    
+
+
     {
         CDLCSegment * linkeditSegment = [machOFile segmentWithName:@"__LINKEDIT"];
         if (Is32Bit) {
             struct segment_command *linkedit_segment_command = (struct segment_command *)((char *)outData.mutableBytes + linkeditSegment.commandOffset);
             linkedit_segment_command -> filesize += increase_size_all_without_padding + string_table_padding;
             linkedit_segment_command -> vmsize = (uint32) vm_addr_round((linkedit_segment_command -> filesize), 0x4000);
-            
-            
         } else {
-            
             struct segment_command_64 *linkedit_segment_command = (struct segment_command_64  *)((char *)outData.mutableBytes + linkeditSegment.commandOffset);
             linkedit_segment_command -> filesize += increase_size_all_without_padding + string_table_padding;
             linkedit_segment_command -> vmsize = vm_addr_round((linkedit_segment_command -> filesize), 0x4000);
         }
     }
-    
-    
-    
-    
+
     // must first insert string
     [outData replaceBytesInRange:NSMakeRange(origin_string_table_offset + origin_string_table_size , 0) withBytes:(const void *)string_table_append_data.bytes   length:increase_size_string_tab + string_table_padding];
     

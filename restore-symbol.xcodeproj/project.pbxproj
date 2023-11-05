@@ -98,6 +98,8 @@
 		8F92BC011D6B78FD008EA4C4 /* CDSearchPathState.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = CDSearchPathState.m; path = "../class-dump/Source/CDSearchPathState.m"; sourceTree = "<group>"; };
 		8F92BC031D6B790C008EA4C4 /* CDStructureTable.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = CDStructureTable.m; path = "../class-dump/Source/CDStructureTable.m"; sourceTree = "<group>"; };
 		8F92BC051D6B791D008EA4C4 /* CDStructureInfo.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = CDStructureInfo.m; path = "../class-dump/Source/CDStructureInfo.m"; sourceTree = "<group>"; };
+		988E65372AF5400600FF6BCC /* WhatsApp_block_symbol_20231027_114208.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = WhatsApp_block_symbol_20231027_114208.json; sourceTree = "<group>"; };
+		98E7B7E12AEE9C9300ABF87C /* WhatsApp */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.executable"; path = WhatsApp; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -116,6 +118,7 @@
 		8F92BBBD1D6B7085008EA4C4 = {
 			isa = PBXGroup;
 			children = (
+				98E7B7DB2AEE9C5300ABF87C /* test */,
 				8F92BBF41D6B72E1008EA4C4 /* Foundation.framework */,
 				8F92BBD01D6B70A3008EA4C4 /* class-dump.xcodeproj */,
 				8F92BBC81D6B7085008EA4C4 /* source */,
@@ -173,6 +176,15 @@
 			name = "ref-to-class-dump";
 			sourceTree = "<group>";
 		};
+		98E7B7DB2AEE9C5300ABF87C /* test */ = {
+			isa = PBXGroup;
+			children = (
+				988E65372AF5400600FF6BCC /* WhatsApp_block_symbol_20231027_114208.json */,
+				98E7B7E12AEE9C9300ABF87C /* WhatsApp */,
+			);
+			path = test;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -213,6 +225,7 @@
 			developmentRegion = English;
 			hasScannedForEncodings = 0;
 			knownRegions = (
+				English,
 				en,
 			);
 			mainGroup = 8F92BBBD1D6B7085008EA4C4;
