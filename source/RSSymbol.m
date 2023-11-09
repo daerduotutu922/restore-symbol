@@ -41,7 +41,6 @@
             NSScanner* typeScanner = [NSScanner scannerWithString: typeStr];
             [typeScanner scanHexInt: &typeInt];
             unsigned char type = (unsigned char)typeInt;
-
             symbol = [self symbolWithName:dict[RS_JSON_KEY_SYMBOL_NAME] address:address type:type];
         } else {
             symbol = [self symbolWithName:dict[RS_JSON_KEY_SYMBOL_NAME] address:address];
@@ -49,7 +48,8 @@
 //        NSLog(@"parsed symbol: %@", symbol);
         [parsedSymbolList addObject:symbol];
     }
-    
+
+//    NSLog(@"Parsed %ld symbols", [parsedSymbolList count]);
     return parsedSymbolList;
 }
 

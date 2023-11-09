@@ -29,7 +29,8 @@
 #define vm_addr_round(v,r) ( (v + (r-1) ) & (-r) )
 
 
-void restore_symbol(NSString * inpath, NSString *outpath, NSString* outputObjcSymbolPath, NSString *jsonPath, bool oc_detect_enable, bool replace_restrict){
+//void restore_symbol(NSString * inpath, NSString *outpath, NSString* outputObjcSymbolPath, NSString *jsonPath, bool oc_detect_enable, bool replace_restrict){
+void restore_symbol(NSString * inpath, NSString *outpath, NSString* outputObjcSymbolPath, NSString *jsonPath, bool scanObjcSymbols, bool replace_restrict){
     if (![[NSFileManager defaultManager] fileExistsAtPath:inpath]) {
         fprintf(stderr, "Error: Input file doesn't exist!\n");
         exit(1);
@@ -66,7 +67,8 @@ void restore_symbol(NSString * inpath, NSString *outpath, NSString* outputObjcSy
     RSSymbolCollector *collector = [RSSymbolCollector new];
     collector.machOFile = machOFile;
     
-    if (oc_detect_enable) {
+//    if (oc_detect_enable) {
+    if (scanObjcSymbols) {
         fprintf(stderr, "Scan ObjC method in mach-o-file: %s\n", [inpath UTF8String]);
 
         CDClassDump *classDump = [[CDClassDump alloc] init];
@@ -178,7 +180,7 @@ void restore_symbol(NSString * inpath, NSString *outpath, NSString* outputObjcSy
             NSMutableDictionary* curJsonItemDict = [NSMutableDictionary dictionaryWithObjectsAndKeys: [curSymbol name], @"name", addressStr, @"address", typeStr, @"type", nil];
             [validObjcSymJsonList addObject: curJsonItemDict];
         }
-        NSLog(@"validObjcSymJsonList to json valid: %d", [NSJSONSerialization isValidJSONObject: validObjcSymJsonList]);
+//        NSLog(@"validObjcSymJsonList to json valid: %d", [NSJSONSerialization isValidJSONObject: validObjcSymJsonList]);
 
     //    id toJsonObj = collector.symbols;
     //    id toJsonObj = objcJsonSymList;
@@ -191,6 +193,7 @@ void restore_symbol(NSString * inpath, NSString *outpath, NSString* outputObjcSy
         fprintf(stderr, "Writing objc symbol json string into file: %s\n", [outputObjcSymbolPath UTF8String]);
         NSError* writeJsonFileErr = nil;
         [objcSymJsonStr writeToFile:outputObjcSymbolPath atomically:YES encoding:NSUTF8StringEncoding error:&writeJsonFileErr];
+        fprintf(stderr, "Complete export objc symbol to json file: %s\n", [outputObjcSymbolPath UTF8String]);
     }
 
     if (jsonPath != nil && jsonPath.length != 0) {
@@ -206,6 +209,7 @@ void restore_symbol(NSString * inpath, NSString *outpath, NSString* outputObjcSy
             fprintf(stderr,"Error: Json file cann't parse!");
             exit(1);
         } else {
+            fprintf(stderr, "Parsed %ld symbols from json file\n", [jsonSymbols count]);
             [collector addSymbols:jsonSymbols];
         }
         fprintf(stderr, "Parse finish for symbols in json file.\n");
@@ -311,11 +315,10 @@ void restore_symbol(NSString * inpath, NSString *outpath, NSString* outputObjcSy
     if (!err) {
         chmod(outpath.UTF8String, 0755);
     }else{
-        fprintf(stderr,"Write file error : %s", [err localizedDescription].UTF8String);
+        fprintf(stderr,"Write file error : %s\n", [err localizedDescription].UTF8String);
         return;
     }
-    
-    
+    fprintf(stderr,"Output file: %s\n", outpath.UTF8String);
+
     fprintf(stderr,"=========== Finish ============\n");
-    
 }

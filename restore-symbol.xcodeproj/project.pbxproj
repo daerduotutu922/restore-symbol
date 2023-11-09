@@ -99,6 +99,8 @@
 		8F92BC031D6B790C008EA4C4 /* CDStructureTable.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = CDStructureTable.m; path = "../class-dump/Source/CDStructureTable.m"; sourceTree = "<group>"; };
 		8F92BC051D6B791D008EA4C4 /* CDStructureInfo.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = CDStructureInfo.m; path = "../class-dump/Source/CDStructureInfo.m"; sourceTree = "<group>"; };
 		988E65372AF5400600FF6BCC /* WhatsApp_block_symbol_20231027_114208.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = WhatsApp_block_symbol_20231027_114208.json; sourceTree = "<group>"; };
+		988E65492AFBD2B000FF6BCC /* SharedModules_block_symbol_20231027_153048.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = SharedModules_block_symbol_20231027_153048.json; sourceTree = "<group>"; };
+		988E654A2AFBD2B000FF6BCC /* SharedModules */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = SharedModules; sourceTree = "<group>"; };
 		98E7B7E12AEE9C9300ABF87C /* WhatsApp */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.executable"; path = WhatsApp; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -179,6 +181,8 @@
 		98E7B7DB2AEE9C5300ABF87C /* test */ = {
 			isa = PBXGroup;
 			children = (
+				988E654A2AFBD2B000FF6BCC /* SharedModules */,
+				988E65492AFBD2B000FF6BCC /* SharedModules_block_symbol_20231027_153048.json */,
 				988E65372AF5400600FF6BCC /* WhatsApp_block_symbol_20231027_114208.json */,
 				98E7B7E12AEE9C9300ABF87C /* WhatsApp */,
 			);

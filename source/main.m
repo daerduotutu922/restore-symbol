@@ -79,7 +79,8 @@ int main(int argc, char * argv[]) {
         { "export-objc-symbols",        required_argument, NULL, 'e' },
         { "json",                       required_argument, NULL, 'j' },
         { "output",                     required_argument, NULL, 'o' },
-        { "scan-objc-symbols",          optional_argument, NULL, 's' },
+//        { "scan-objc-symbols",          optional_argument, NULL, 's' },
+        { "scan-objc-symbols",          required_argument, NULL, 's' },
 
         { NULL,                      0,                 NULL, 0 },
     };
@@ -88,7 +89,7 @@ int main(int argc, char * argv[]) {
         print_usage();
         exit(0);
     }
-    
+
     while ( (longOptionChar = getopt_long(argc, argv, "e:j:o:s::hv", longopts, NULL)) != -1) {
 //        printf("longOptionChar=%c\n", longOptionChar);
         switch (longOptionChar) {
@@ -109,21 +110,25 @@ int main(int argc, char * argv[]) {
                 outputObjcSymbolPath = [NSString stringWithUTF8String: optarg];
                 break;
 
-            case 's': // option with optional argument
-//                if (optarg == NULL) {
-                if (OPTIONAL_ARGUMENT_IS_PRESENT) {
-                    // Handle is present
+            case 's':
+//                // option with optional argument
+////                if (optarg == NULL) {
+//                if (OPTIONAL_ARGUMENT_IS_PRESENT) {
+//                    // Handle is present
                     if (strcmp(optarg, "true") == 0) {
                         scanObjcSymbols = true;
                     } else if (strcmp(optarg, "false") == 0) {
                         scanObjcSymbols = false;
+                    } else {
+                        printf("Invalid value %s for --scan-objc-symbols\n", optarg);
+                        onlyPrintHelp = true;
                     }
-                } else {
-                    // Handle is not present
-
-                    // default value is true
-                    scanObjcSymbols = true;
-                }
+//                } else {
+//                    // Handle is not present
+//
+//                    // default value is true
+//                    scanObjcSymbols = true;
+//                }
                 break;
             case 'r':
                 replace_restrict = true;
@@ -132,29 +137,6 @@ int main(int argc, char * argv[]) {
                 break;
         }
     }
-    
-//    int shortOptionChar; /* short option character */
-//
-//    while ((shortOptionChar = getopt(argc, argv, "hv")) != -1) {
-//        printf("shortOptionChar=%c\n", shortOptionChar);
-//        switch (shortOptionChar) {
-////            case RS_OPT_VERSION:
-//        case 'v':
-//            shouldPrintVersion = YES;
-//            break;
-//        case 'h':
-//            onlyPrintHelp = YES;
-//            break;
-//
-//        case ':':
-//        case '?':
-//        default:
-//            /* error handling, see text */
-//            printf("Invalid option: %c\n", shortOptionChar);
-//            exit(0);
-//        }
-//    }
-
     
     if (onlyPrintHelp) {
         print_usage();
@@ -169,8 +151,7 @@ int main(int argc, char * argv[]) {
     if (optind < argc) {
         inpath = [NSString stringWithUTF8String:argv[optind]];
     }
-    
-    
+
 //    restore_symbol(inpath, outpath, outputObjcSymbolPath, jsonPath, oc_detect_enable, replace_restrict);
     restore_symbol(inpath, outpath, outputObjcSymbolPath, jsonPath, scanObjcSymbols, replace_restrict);
     
