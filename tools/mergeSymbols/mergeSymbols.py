@@ -1,6 +1,6 @@
 # Function: Merge symbols from exported from IDA (functions), restore-symbol restored, scanned Objc block
 # Author: Crifan Li
-# Update: 20231113
+# Update: 20231115
 
 import os
 import json
@@ -35,16 +35,18 @@ import copy
 # Config & Settings & Const
 ################################################################################
 
-curAppName = "WhatsApp"
-# idaFunctionsSymbolFileName = "WhatsApp_IDAFunctionsSymbol_20231112_174504.json"
-idaFunctionsSymbolFileName = "WhatsApp_IDAFunctionsSymbol_ImageBase0x100000000_20231114_114528.json"
-restoreSymbolObjcSymbolFileName = "WhatsApp_objcNoDupSymbols_20231105.json"
-idaBlockSymbolFileName = "WhatsApp_block_symbol_20231027_114208.json"
+# curAppName = "WhatsApp"
+# # idaFunctionsSymbolFileName = "WhatsApp_IDAFunctionsSymbol_20231112_174504.json"
+# # idaFunctionsSymbolFileName = "WhatsApp_IDAFunctionsSymbol_ImageBase0x100000000_20231114_114528.json"
+# idaFunctionsSymbolFileName = "WhatsApp_IDAFunctionsSymbol_omitImportFunc_20231115_115215.json"
+# restoreSymbolObjcSymbolFileName = "WhatsApp_objcNoDupSymbols_20231105.json"
+# idaBlockSymbolFileName = "WhatsApp_block_symbol_20231027_114208.json"
 
-# curAppName = "SharedModules"
+curAppName = "SharedModules"
 # idaFunctionsSymbolFileName = "SharedModules_IDAFunctionsSymbol_20231112_175710.json"
-# restoreSymbolObjcSymbolFileName = "SharedModules_objcNoDupSymbols_20231108.json"
-# idaBlockSymbolFileName = "SharedModules_block_symbol_20231027_153048.json"
+idaFunctionsSymbolFileName = "SharedModules_IDAFunctionsSymbol_omitImportFunc_20231115_220343.json"
+restoreSymbolObjcSymbolFileName = "SharedModules_objcNoDupSymbols_20231108.json"
+idaBlockSymbolFileName = "SharedModules_block_symbol_20231027_153048.json"
 
 ################################################################################
 # Global Variable

@@ -215,11 +215,14 @@ void restore_symbol(NSString * inpath, NSString *outpath, NSString* outputObjcSy
         fprintf(stderr, "Parse finish for symbols in json file.\n");
     }
     
+    uint32 toRestoreSymNum = (uint32)collector.symbols.count;
+    fprintf(stderr, "Restoring %d symbols\n", toRestoreSymNum);
+
     NSData *string_table_append_data = nil;
     NSData *symbol_table_append_data = nil;
     [collector generateAppendStringTable:&string_table_append_data appendSymbolTable:&symbol_table_append_data];
     
-    uint32 increase_symbol_num = (uint32)collector.symbols.count;
+    uint32 increase_symbol_num = toRestoreSymNum;
     uint32 increase_size_string_tab = (uint32)string_table_append_data.length;
     uint32 increase_size_symtab = (uint32)symbol_table_append_data.length;
     uint32 increase_size_all_without_padding = increase_size_symtab + increase_size_string_tab;
@@ -309,16 +312,18 @@ void restore_symbol(NSString * inpath, NSString *outpath, NSString* outputObjcSy
     
     [outData replaceBytesInRange:NSMakeRange(origin_symbol_table_offset + origin_symbol_table_num * NListSize , 0) withBytes:(const void *)symbol_table_append_data.bytes   length:increase_size_symtab];
     
+    fprintf(stderr, "Restore symbol complete\n");
+
     NSError * err = nil;
     [outData writeToFile:outpath options:NSDataWritingWithoutOverwriting error:&err];
-    
+
     if (!err) {
         chmod(outpath.UTF8String, 0755);
     }else{
-        fprintf(stderr,"Write file error : %s\n", [err localizedDescription].UTF8String);
+        fprintf(stderr, "Write file error : %s\n", [err localizedDescription].UTF8String);
         return;
     }
-    fprintf(stderr,"Output file: %s\n", outpath.UTF8String);
+    fprintf(stderr, "Output file: %s\n", outpath.UTF8String);
 
-    fprintf(stderr,"=========== Finish ============\n");
+    fprintf(stderr, "=========== Finish ============\n");
 }

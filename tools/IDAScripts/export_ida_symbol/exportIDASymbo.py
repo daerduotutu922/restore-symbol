@@ -31,8 +31,8 @@ import codecs
 # Config & Settings
 ################################################################################
 
-# isVerbose = False
-isVerbose = True
+isVerbose = False
+# isVerbose = True
 
 ################################################################################
 # Util Function
@@ -52,7 +52,6 @@ def datetimeToStr(inputDatetime, format="%Y%m%d_%H%M%S"):
     datetimeStr = inputDatetime.strftime(format=format)
     # print("inputDatetime=%s -> datetimeStr=%s" % (inputDatetime, datetimeStr)) # 2020-04-21 15:08:59.787623
     return datetimeStr
-
 
 def getCurDatetimeStr(outputFormat="%Y%m%d_%H%M%S"):
     """
