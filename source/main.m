@@ -42,13 +42,12 @@ void print_usage(void)
             "Usage: restore-symbol -o <output-file> [-j <json-symbol-file>] <mach-o-file>\n"
             "\n"
             "  where options are:\n"
-            "    -o,--output <output-file>      New mach-o-file path\n"
-            "    --disable-oc-detect            Disable auto detect and add oc method into symbol table,\n"
-            "                                   only add symbol in json file\n"
-            "    -e,--export-oc-symbol          <output-oc-symbol-file>    Export ObjC symbol file while restore ObjC symbol\n"
-            "    --replace-restrict             New mach-o-file will replace the LC_SEGMENT(__RESTRICT,__restrict)\n"
-            "                                   with LC_SEGMENT(__restrict,__restrict) to close dylib inject protection\n"
-            "    -j,--json <json-symbol-file>   Json file containing extra symbol info, the key is \"name\",\"address\"\n                                   like this:\n                               \n"
+            "    -o,--output <output-file>                              New mach-o-file path\n"
+            "    -s,--scan-objc-symbols <true/false>                    true/false to enable/disable to disable scan objc symbols\n"
+            "    -e,--export-objc-symbol <output-objc-symbol-file>      Export ObjC symbol file while restore ObjC symbol\n"
+            "    --replace-restrict                                     New mach-o-file will replace the LC_SEGMENT(__RESTRICT,__restrict)\n"
+            "                                                           with LC_SEGMENT(__restrict,__restrict) to close dylib inject protection\n"
+            "    -j,--json <json-symbol-file>                           Json file containing extra symbol info, the key is \"name\",\"address\"\n                                   like this:\n                               \n"
             "                                    [\n                                         {\n                                          \"name\": \"main\", \n                                          \"address\": \"0xXXXXXX\"\n                                         }, \n                                         {\n                                          \"name\": \"-[XXXX XXXXX]\", \n                                          \"address\": \"0xXXXXXX\"\n                                         },\n                                         .... \n                                        ]\n"
             "    -h,--help                      Print this help info then exit\n"
 
@@ -90,7 +89,8 @@ int main(int argc, char * argv[]) {
         exit(0);
     }
 
-    while ( (longOptionChar = getopt_long(argc, argv, "e:j:o:s::hv", longopts, NULL)) != -1) {
+//    while ( (longOptionChar = getopt_long(argc, argv, "e:j:o:s::hv", longopts, NULL)) != -1) {
+    while ( (longOptionChar = getopt_long(argc, argv, "e:j:o:s:hv", longopts, NULL)) != -1) {
 //        printf("longOptionChar=%c\n", longOptionChar);
         switch (longOptionChar) {
             case 'h':

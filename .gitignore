@@ -108,3 +108,9 @@ obj/
 
 test/
 
+tools/mergeSymbols/.vscode/
+tools/mergeSymbols/input/
+tools/mergeSymbols/output/
+*.xcscheme
+IDEWorkspaceChecks.plist
+class-dump
