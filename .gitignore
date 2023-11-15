@@ -114,3 +114,5 @@ tools/mergeSymbols/output/
 *.xcscheme
 IDEWorkspaceChecks.plist
 class-dump
+
+.DS_Store
