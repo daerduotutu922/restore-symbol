@@ -1,8 +1,10 @@
 # restore-symbol
 
-* Update: `20231103`
+* Update: `20231115`
 * Forked from: https://github.com/HeiTanBc/restore-symbol
 * Changelog
+  * 20231115
+    * other updates for `exportIDASymbo.py`, `mergeSymbols.py`
   * 20231103
     * add `tools/IDAScripts/export_ida_symbol/exportIDASymbo.py`
       * to export IDA symbols
@@ -75,27 +77,31 @@ ios-deploy -d -b xxxx.app
 ## Command Line Usage
 
 ```bash
+# ./restore-symbol --help
+
+restore-symbol 1.0 (64 bit)
+
 Usage: restore-symbol -o <output-file> [-j <json-symbol-file>] <mach-o-file>
 
   where options are:
-        -o <output-file>           New mach-o-file path
-        --disable-oc-detect        Disable auto detect and add oc method into symbol table,
-                                   only add symbol in json file
-        --replace-restrict         New mach-o-file will replace the LC_SEGMENT(__RESTRICT,__restrict)
-                                   with LC_SEGMENT(__restrict,__restrict) to close dylib inject protection
-        -j <json-symbol-file>      Json file containing extra symbol info, the key is "name","address"
+    -o,--output <output-file>                              New mach-o-file path
+    -s,--scan-objc-symbols <true/false>                    true/false to enable/disable to disable scan objc symbols
+    -e,--export-objc-symbol <output-objc-symbol-file>      Export ObjC symbol file while restore ObjC symbol
+    --replace-restrict                                     New mach-o-file will replace the LC_SEGMENT(__RESTRICT,__restrict)
+                                                           with LC_SEGMENT(__restrict,__restrict) to close dylib inject protection
+    -j,--json <json-symbol-file>                           Json file containing extra symbol info, the key is "name","address"
                                    like this:
-
-                                        [
+                               
+                                    [
                                          {
-                                          "name": "main",
+                                          "name": "main", 
+                                          "address": "0xXXXXXX"
+                                         }, 
+                                         {
+                                          "name": "-[XXXX XXXXX]", 
                                           "address": "0xXXXXXX"
                                          },
-                                         {
-                                          "name": "-[XXXX XXXXX]",
-                                          "address": "0xXXXXXX"
-                                         },
-                                         ....
+                                         .... 
                                         ]
-
+    -h,--help                      Print this help info then exit
 ```
