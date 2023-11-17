@@ -22,7 +22,7 @@ import ida_nalt
 # import csv
 # import sys
 import json
-# import os
+import os
 from datetime import datetime,timedelta
 from datetime import time  as datetimeTime
 # import time
@@ -37,22 +37,6 @@ isLogVerbose = False
 ################################################################################
 # Util Function
 ################################################################################
-
-# def getFilenameNoPointSuffix(curFilePath):
-#     """Get current filename without point and suffix
-
-#     Args:
-#         curFilePath (str): current file path. Normally can use __file__
-#     Returns:
-#         str, file name without .xxx
-#     Raises:
-#     Examples:
-#         input: /Users/xxx/pymitmdump/mitmdumpOtherApi.py 
-#         output: mitmdumpOtherApi
-#     """
-#     root, pointSuffix = os.path.splitext(curFilePath)
-#     curFilenameNoSuffix = root.split(os.path.sep)[-1]
-#     return curFilenameNoSuffix
 
 def datetimeToStr(inputDatetime, format="%Y%m%d_%H%M%S"):
     """Convert datetime to string
@@ -89,28 +73,29 @@ def getCurDatetimeStr(outputFormat="%Y%m%d_%H%M%S"):
 # Main
 ################################################################################
 
+idaVersion = idaapi.IDA_SDK_VERSION
+print("idaVersion=%s" % idaVersion)
+
+inputFilename = get_root_filename()
+# print("inputFilename=%s" % inputFilename)
+
 IS32BIT = not idaapi.get_inf_structure().is_64bit()
 
 IS_MAC = 'X86_64' in idaapi.get_file_type_name()
 
-# print "Start analyze binary for " + ("Mac" if IS_MAC else "iOS")
-print("Start analyze binary for " + ("Mac" if IS_MAC else "iOS"))
+platformStr = ("Mac" if IS_MAC else "iOS")
+# print "Start analyze binary for " + platformStr
+print("Start scan ObjC block symbols for %s on %s from IDA v%s" % (inputFilename, platformStr, idaVersion))
 
-idaRootFilename = get_root_filename()
-print("idaRootFilename=%s" % idaRootFilename)
-# idaInputFilePath = get_input_file_path()
-# print("idaInputFilePath=%s" % idaInputFilePath)
-
-# idaVersion = idaapi.IDA_SDK_VERSION
-# print("idaVersion=%s" % idaVersion)
-
+# generate output file name
 # outputFilename = "block_symbol"
 outputFilename = "blockSymbolsRenamed"
-# outputFullFilename = "%s_%s_%s.json" % (getFilenameNoPointSuffix(__file__), outputFilename, getCurDatetimeStr())
-outputFullFilename = "%s_%s_%s.json" % (idaRootFilename, outputFilename, getCurDatetimeStr())
+outputFullFilename = "%s_%s_%s.json" % (inputFilename, outputFilename, getCurDatetimeStr())
 # print("outputFullFilename=%s" % outputFullFilename)
 
-outputFolder = ida_nalt.get_input_file_path()
+inputFileFullPath = ida_nalt.get_input_file_path()
+# print("inputFileFullPath=%s" % inputFileFullPath)
+outputFolder = os.path.dirname(inputFileFullPath)
 # print("outputFolder=%s" % outputFolder)
 
 print("%s process %s" % ("="*30, "="*30))
@@ -394,6 +379,7 @@ for eachBlockSymDict in blockSymbolDictList:
     renamedSameNameDiffAddrCount += 1
 print("Has renamed for same name diff address: %d" % renamedSameNameDiffAddrCount)
 
+blockSymbolDictList = sorted(blockSymbolDictList, key=lambda eachDict: int(eachDict["address"], base=16))
 
 encodeJson = json.dumps(blockSymbolDictList, indent=1)
 f = open(outputFullFilename, "w")

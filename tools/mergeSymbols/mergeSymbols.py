@@ -1,6 +1,6 @@
 # Function: Merge symbols from exported from IDA (functions), restore-symbol restored, scanned Objc block
 # Author: Crifan Li
-# Update: 20231116
+# Update: 20231117
 
 import os
 import json
@@ -46,7 +46,8 @@ curAppName = "SharedModules"
 # idaFunctionsSymbolFileName = "SharedModules_IDAFunctionsSymbol_20231112_175710.json"
 idaFunctionsSymbolFileName = "SharedModules_IDAFunctionsSymbol_omitImportFunc_20231115_220343.json"
 restoreSymbolObjcSymbolFileName = "SharedModules_objcNoDupSymbols_20231108.json"
-idaBlockSymbolFileName = "SharedModules_block_symbol_20231027_153048.json"
+# idaBlockSymbolFileName = "SharedModules_block_symbol_20231027_153048.json"
+idaBlockSymbolFileName = "SharedModules_blockSymbolsRenamed_20231117_220017.json"
 
 ################################################################################
 # Global Variable
@@ -333,9 +334,11 @@ for symName, symDict in mergedSymbolsDict.items():
 
   outputSymbolList.append(outputSymDict)
 
-mergedSymbolNum = len(outputSymbolList)
+sortedOutputSymbolList = sorted(outputSymbolList, key=lambda eachDict: int(eachDict["address"], base=16))
+
+mergedSymbolNum = len(sortedOutputSymbolList)
 print("  Exporting %d symbols to file %s" % (mergedSymbolNum, outputFilename))
-saveJsonToFile(outputFullFilename, outputSymbolList)
+saveJsonToFile(outputFullFilename, sortedOutputSymbolList)
 print("  Exported final merged symbol file %s" % outputFullFilename)
 
 print("")
