@@ -3,6 +3,9 @@
 """
 Changelog:
 
+[20231117]
+1. rename block symbol name for same address
+
 [20231027]
 1. convert to support IDA 7.4+
 2. convert to Python 3.x
@@ -14,15 +17,22 @@ Changelog:
 import idautils
 import idc
 from idaapi import PluginForm
-import operator
-import csv
-import sys
+import ida_nalt
+# import operator
+# import csv
+# import sys
 import json
-
-import os
+# import os
 from datetime import datetime,timedelta
 from datetime import time  as datetimeTime
-import time
+# import time
+
+################################################################################
+# Config & Settings & Const
+################################################################################
+
+isLogVerbose = False
+# isLogVerbose = True
 
 ################################################################################
 # Util Function
@@ -94,11 +104,16 @@ print("idaRootFilename=%s" % idaRootFilename)
 # idaVersion = idaapi.IDA_SDK_VERSION
 # print("idaVersion=%s" % idaVersion)
 
-outputFilename = "block_symbol"
+# outputFilename = "block_symbol"
+outputFilename = "blockSymbolsRenamed"
 # outputFullFilename = "%s_%s_%s.json" % (getFilenameNoPointSuffix(__file__), outputFilename, getCurDatetimeStr())
 outputFullFilename = "%s_%s_%s.json" % (idaRootFilename, outputFilename, getCurDatetimeStr())
-print("outputFullFilename=%s" % outputFullFilename)
+# print("outputFullFilename=%s" % outputFullFilename)
 
+outputFolder = ida_nalt.get_input_file_path()
+# print("outputFolder=%s" % outputFolder)
+
+print("%s process %s" % ("="*30, "="*30))
 
 def isInText(x):
     # return SegName(x) == '__text'
@@ -259,7 +274,9 @@ def findBlockName(block_func):
     gRecursionFuncDict.pop(block_func, None)
     # print("before return: gRecursionFuncDict=%s" % gRecursionFuncDict)
 
-    print("%s -> %s" % (block_func, retFuncName))
+    if isLogVerbose:
+      print("Parsed: 0x%X -> %s" % (block_func, retFuncName))
+
     return retFuncName
 
 #find all possible Stack Block 
@@ -316,7 +333,7 @@ for block_func in allPossibleStackBlockFunc:
     block_name = findBlockName(block_func)
     resultDict[block_func] = block_name
 
-list_output = []
+blockSymbolDictList = []
 error_num = 0
 for addr in resultDict:
     name = resultDict[addr]
@@ -324,16 +341,71 @@ for addr in resultDict:
         error_num += 1
         continue
 
-    list_output += [{"address":("0x%X" % addr), "name":name}]
+    blockSymbolDictList += [{"address":("0x%X" % addr), "name":name}]
 
-encodeJson = json.dumps(list_output, indent=1)
+
+# post process: rename block symbol name for same address
+# eg:
+#   -[XMPPSocket connect]_block -> -[XMPPSocket connect]_block_1
+#   -[XMPPSocket connect]_block -> -[XMPPSocket connect]_block_2
+restoredBlockSymNum = len(blockSymbolDictList)
+print("restoredBlockSymNum=%s" % restoredBlockSymNum)
+
+blockNameAddrListDict = {}
+blockSymbolNameCount = 0
+for eachBlockSym in blockSymbolDictList:
+  blockSymName = eachBlockSym["name"]
+  blockSymAddrStr = eachBlockSym["address"]
+  blockSymAddr = int(blockSymAddrStr, base=16)
+  if blockSymName in blockNameAddrListDict.keys():
+    existAddrList = blockNameAddrListDict[blockSymName]
+    existAddrList.append(blockSymAddr)
+    existAddrList.sort()
+  else:
+    addrList = [blockSymAddr]
+    blockNameAddrListDict[blockSymName] = addrList
+blockSymbolNameCount = len(blockNameAddrListDict.keys())
+print("Block symbol name count: %d" % blockSymbolNameCount)
+
+addrNewNameDict = {}
+sameNameDiffAddrCount = 0
+for eachSymName, eachSymAddrList in blockNameAddrListDict.items():
+  eachSymAddrListLen = len(eachSymAddrList)
+  if eachSymAddrListLen > 1:
+    sameNameDiffAddrCount += 1
+    for eachSymAddrNum, eachSymAddr in enumerate(eachSymAddrList, start=1):
+      newSymName = "%s_%d" % (eachSymName, eachSymAddrNum)
+      addrNewNameDict[eachSymAddr] = newSymName
+      if isLogVerbose:
+        print("GenNewName: [0x%X] %s" % (eachSymAddr, newSymName))
+print("Found same name diff address: %d" % sameNameDiffAddrCount)
+
+renamedSameNameDiffAddrCount = 0
+for eachBlockSymDict in blockSymbolDictList:
+  blockSymName = eachBlockSymDict["name"]
+  blockSymAddrStr = eachBlockSymDict["address"]
+  blockSymAddr = int(blockSymAddrStr, base=16)
+  if blockSymAddr in addrNewNameDict.keys():
+    newBlockSymName = addrNewNameDict[blockSymAddr]
+    # Note: in-place changed dict value inside list
+    eachBlockSymDict["name"] = newBlockSymName
+    if isLogVerbose:
+      print("UpdateName: %s -> %s " % (blockSymName, newBlockSymName))
+    renamedSameNameDiffAddrCount += 1
+print("Has renamed for same name diff address: %d" % renamedSameNameDiffAddrCount)
+
+
+encodeJson = json.dumps(blockSymbolDictList, indent=1)
 f = open(outputFullFilename, "w")
 f.write(encodeJson)
 f.close()
 
+print("%s result %s" % ("="*30, "="*30))
+
+print("Output folder: %s" % outputFolder)
 print("Result file: %s" % outputFullFilename)
 
-# print 'restore block num %d ' % len(list_output)
+# print 'restore block num %d ' % len(blockSymbolDictList)
 # print 'origin  block num: %d(GlobalBlock: %d, StackBlock: %d)' % (len(allRefToBlock) + len(AllGlobalBlockMap), len(AllGlobalBlockMap), len(allRefToBlock))
-print('restore block num %d' % len(list_output))
+print('restore block num %d' % len(blockSymbolDictList))
 print('origin  block num: %d (GlobalBlock: %d, StackBlock: %d)' % (len(allRefToBlock) + len(AllGlobalBlockMap), len(AllGlobalBlockMap), len(allRefToBlock)))
