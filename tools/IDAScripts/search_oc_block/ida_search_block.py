@@ -3,6 +3,9 @@
 """
 Changelog:
 
+[20231118]
+1. support writeback/rename (scanned ObjC block symbol name) into IDA
+
 [20231117]
 1. rename block symbol name for same address
 
@@ -31,6 +34,15 @@ from datetime import time  as datetimeTime
 # Config & Settings & Const
 ################################################################################
 
+# is exmport scanned symbol to json file or not
+isExportToFile = True
+# isExportToFile = False
+
+# enable write back (scanned objc block symbol name) into IDA or not
+enableWriteback = True
+# enableWriteback = False
+
+# verbose log or not
 isLogVerbose = False
 # isLogVerbose = True
 
@@ -98,7 +110,7 @@ inputFileFullPath = ida_nalt.get_input_file_path()
 outputFolder = os.path.dirname(inputFileFullPath)
 # print("outputFolder=%s" % outputFolder)
 
-print("%s process %s" % ("="*30, "="*30))
+print("%s Processing %s" % ("="*40, "="*40))
 
 def isInText(x):
     # return SegName(x) == '__text'
@@ -329,7 +341,8 @@ for addr in resultDict:
     blockSymbolDictList += [{"address":("0x%X" % addr), "name":name}]
 
 
-# post process: rename block symbol name for same address
+print("%s post process: rename for same address %s" % ("-"*30, "-"*30))
+
 # eg:
 #   -[XMPPSocket connect]_block -> -[XMPPSocket connect]_block_1
 #   -[XMPPSocket connect]_block -> -[XMPPSocket connect]_block_2
@@ -381,17 +394,87 @@ print("Has renamed for same name diff address: %d" % renamedSameNameDiffAddrCoun
 
 blockSymbolDictList = sorted(blockSymbolDictList, key=lambda eachDict: int(eachDict["address"], base=16))
 
-encodeJson = json.dumps(blockSymbolDictList, indent=1)
-f = open(outputFullFilename, "w")
-f.write(encodeJson)
-f.close()
+blockSymbolNum = len(blockSymbolDictList)
 
-print("%s result %s" % ("="*30, "="*30))
+print("%s Summary Info %s" % ("="*40, "="*40))
 
-print("Output folder: %s" % outputFolder)
-print("Result file: %s" % outputFullFilename)
+globalBlockNum = len(AllGlobalBlockMap)
+stackBlockNum = len(allRefToBlock)
+originTotalBlockNum = globalBlockNum + stackBlockNum
+print("Restored block number: %d" % blockSymbolNum)
+print("  Total origin block number: %d" % originTotalBlockNum)
+print("    Global block number: %d" % globalBlockNum)
+print("    Stack block number: %d" % stackBlockNum)
 
-# print 'restore block num %d ' % len(blockSymbolDictList)
-# print 'origin  block num: %d(GlobalBlock: %d, StackBlock: %d)' % (len(allRefToBlock) + len(AllGlobalBlockMap), len(AllGlobalBlockMap), len(allRefToBlock))
-print('restore block num %d' % len(blockSymbolDictList))
-print('origin  block num: %d (GlobalBlock: %d, StackBlock: %d)' % (len(allRefToBlock) + len(AllGlobalBlockMap), len(AllGlobalBlockMap), len(allRefToBlock)))
+
+if isExportToFile:
+  print("%s export to file %s" % ("="*40, "="*40))
+
+  print("Exporting %d symbol to" % blockSymbolNum)
+  print("  folder: %s" % outputFolder)
+  print("  file: %s" % outputFullFilename)
+
+  encodeJson = json.dumps(blockSymbolDictList, indent=1)
+  f = open(outputFullFilename, "w")
+  f.write(encodeJson)
+  f.close()
+  print("Export complete")
+
+
+# # for debug
+# isLogVerbose = True
+
+if enableWriteback:
+  print("%s Writeback/Rename IDA block symbol %s" % ("="*40, "="*40))
+
+  renameCount = 0
+  renameOkCount = 0
+  renameFailCount = 0
+  noNeedRenameCount = 0
+
+  # testBlockSymbolDictList = [
+  #   {
+  #     "address": "0x63C8E4",
+  #     "name": "-[WAParticipantPickerViewController reloadContacts]_block_1"
+  #   },
+  #   {
+  #     "address": "0x63C934",
+  #     "name": "-[WAParticipantPickerViewController reloadContacts]_block_2"
+  #   },
+  #   {
+  #     "address": "0x63C9C4",
+  #     "name": "-[WAParticipantPickerViewController reloadContacts]_block_3"
+  #   },
+  #   {
+  #     "address": "0x63C9D4",
+  #     "name": "-[WAParticipantPickerViewController reloadContacts]_block_4"
+  #   },
+  # ]
+
+  for eachSymDict in blockSymbolDictList:
+      symAddrStr = eachSymDict["address"]
+      symAddr = int(symAddrStr, base=16)
+      symName = eachSymDict["name"]
+      oldSymName = idc.get_func_name(symAddr)
+      if oldSymName != symName:
+        isSetNameOk = idc.set_name(symAddr, symName)
+        renameCount += 1
+        if isLogVerbose:
+          # resultStr = "ok" if isSetNameOk == 1 else "fail"
+          if isSetNameOk == 1:
+            resultStr = "ok"
+            renameOkCount += 1
+          else:
+            resultStr = "fail"
+            renameFailCount += 1
+          print("rename %s: [0x%X] %s -> %s" % (resultStr, symAddr, oldSymName, symName))
+      else:
+        noNeedRenameCount += 1
+        if isLogVerbose:
+          print("No need rename for already is: [0x%X] %s" % (symAddr, oldSymName))
+
+  print("Total symbol number: %d" % blockSymbolNum)
+  print("  Rename number: %d" % renameCount)
+  print("    OK number: %d" % renameOkCount)
+  print("    Fail number: %d" % renameFailCount)
+  print("  No need Rename number: %d" % noNeedRenameCount)
