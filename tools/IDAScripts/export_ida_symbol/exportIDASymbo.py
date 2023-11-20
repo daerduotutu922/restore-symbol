@@ -1,6 +1,6 @@
 # Function: IDA script plugin, export (functions) symbol from IDA (for Mach-O format)
 # Author: Crifan Li
-# Update: 20231115
+# Update: 20231119
 
 # import idc
 # import sys
@@ -33,6 +33,9 @@ import codecs
 
 isVerbose = False
 # isVerbose = True
+
+isExportToFile = True
+# isExportToFile = False
 
 ################################################################################
 # Util Function
@@ -239,20 +242,29 @@ def testGetSegment():
 # Main
 ################################################################################
 
+print("%s Prepare %s" % ("="*40, "="*40))
+
 imageBase = idaapi.get_imagebase()
-imageBaseStr = "ImageBase0x%X" % imageBase
-print("imageBaseStr = %s = %s" % (imageBaseStr, imageBase))
+# imageBaseStr = "ImageBase0x%X" % imageBase
+print("Image Base: 0x%X = %d" % (imageBase, imageBase))
 
 idaVersion = idaapi.IDA_SDK_VERSION
-print("idaVersion=%s" % idaVersion)
+print("IDA Version: %s" % idaVersion)
 
 idaRootFilename = get_root_filename()
-print("idaRootFilename=%s" % idaRootFilename)
+print("IDA root filename: %s" % idaRootFilename)
+
+inputFileFullPath = ida_nalt.get_input_file_path()
+# print("inputFileFullPath=%s" % inputFileFullPath)
+outputFolder = os.path.dirname(inputFileFullPath)
+# print("outputFolder=%s" % outputFolder)
 
 # changeLogStr = imageBaseStr
-changeLogStr = "omitImportFunc"
+# changeLogStr = "omitImportFunc"
+changeLogStr = "FunctionsNames"
 
-outputFilename = "IDAFunctionsSymbol"
+# outputFilename = "IDAFunctionsSymbol"
+outputFilename = "IDASymbols"
 # outputFullFilename = "%s_%s_%s.json" % (getFilenameNoPointSuffix(__file__), outputFilename, getCurDatetimeStr())
 # outputFullFilename = "%s_%s_%s.json" % (idaRootFilename, outputFilename, getCurDatetimeStr())
 # outputFullFilename = "%s_%s_%s_%s.json" % (idaRootFilename, outputFilename, imageBaseStr, getCurDatetimeStr())
@@ -261,31 +273,34 @@ print("outputFullFilename=%s" % outputFullFilename)
 
 lastDataSegmentSectionName = "__common"
 commonSeg = ida_segment.get_segm_by_name(lastDataSegmentSectionName)
-print("commonSeg: %s -> %s" % (lastDataSegmentSectionName, commonSeg))
+print("__common segment: %s -> %s" % (lastDataSegmentSectionName, commonSeg))
 printSegment(commonSeg)
 lastValidEndAddr = commonSeg.end_ea
-print("lastValidEndAddr=0x%X" % lastValidEndAddr)
+print("End valid Functions Symbol address: 0x%X" % lastValidEndAddr)
 
-symbolDictList = []
+functionsSymbolDictList = []
 
 functionIterator = idautils.Functions()
 # print("type(functionList)=%s" % type(functionList))
-print("="*30 + "IDA All Functions Symbols:" + "="*30)
+
+print("%s Exporting IDA Symbols %s" % ("="*40, "="*40))
+
+print("%s Functions Symbols %s" % ("-"*30, "-"*30))
 
 functionAddrList = []
 for curFuncAddr in functionIterator:
   functionAddrList.append(curFuncAddr)
-totalNum = len(functionAddrList)
-print("totalNum=%s" % totalNum)
+totalFunctionsCount = len(functionAddrList)
+print("totalFunctionsCount=%s" % totalFunctionsCount)
 
 # # for debug
 # impFunNum = 0
 
-validNum = 0
-invalidNum = 0
+validFunctionsSymbolCount = 0
+invalidFunctionsSymbolCount = 0
 
-cleanLogPerNum = int(totalNum / 100)
-print("cleanLogPerNum=%s" % cleanLogPerNum)
+eliteLogPerNum = int(totalFunctionsCount / 100)
+print("eliteLogPerNum=%s" % eliteLogPerNum)
 
 curNum = 0
 for curFunc in functionAddrList:
@@ -301,13 +316,13 @@ for curFunc in functionAddrList:
   isValid = not (curFuncAttr_end > lastValidEndAddr)
 
   if isValid:
-    validNum += 1
+    validFunctionsSymbolCount += 1
 
     isLogCurrent = False
     if isVerbose:
        isLogCurrent = True
     else:
-      if (curNum % cleanLogPerNum == 0):
+      if (curNum % eliteLogPerNum == 0):
        isLogCurrent = True
 
     curFuncAttr_start = idc.get_func_attr(curFunc, attr=FUNCATTR_START)
@@ -329,23 +344,102 @@ for curFunc in functionAddrList:
 
     if isLogCurrent:
       # print("[%d] addr=%s, name=%s, size=%s, flags=%s, owner=0x%X" % (toPrintNum, curFuncAddrStr, curFuncName, curFuncSizeStr, curFuncFlagsStr, curFuncAttr_owner))
-      print("[%d/%d] addr=%s, name=%s, size=%s" % (curNum, totalNum, curFuncAddrStr, curFuncName, curFuncSizeStr))
+      print("[%d/%d] addr=%s, name=%s, size=%s" % (curNum, totalFunctionsCount, curFuncAddrStr, curFuncName, curFuncSizeStr))
 
     curSymbolDict = {
       "name": curFuncName,
       "address": curFuncAddrStr,
       "size": curFuncSizeStr,
     }
-    symbolDictList.append(curSymbolDict)
+    functionsSymbolDictList.append(curSymbolDict)
   else:
-    invalidNum += 1
+    invalidFunctionsSymbolCount += 1
 
-validNum = len(symbolDictList)
+validFunctionsSymbolCount = len(functionsSymbolDictList)
 
-print("Total: %d" % totalNum)
-print(" Valid=%d" % validNum)
-print(" Invalid: %d" % invalidNum)
+print("%s Names Symbols %s" % ("-"*30, "-"*30))
 
-print("Exporting %d symbols to file %s" % (validNum, outputFullFilename))
-saveJsonToFile(outputFullFilename, symbolDictList)
-print("Export complete")
+# nameTupleList = []
+# nameNameList = []
+# nameAddrList = []
+# nameTupleIterator = idautils.Names()
+# for nameTuple in nameTupleIterator:
+#   # print("nameTuple=%s" % (nameTuple))
+#   nameName, nameAddr = nameTuple
+#   nameNameList.append(nameName)
+#   nameAddrList.append(nameAddr)
+#   nameTupleList.append(nameTuple)
+# nameNum = len(nameTupleList)
+# print("nameNum=%s" % nameNum)
+
+# # isAllFuncSymInNames = True
+# funcNameAndAddrBothInNamesDict = {}
+# funcNameNotInNamesList = []
+# funcAddrNotInNamesList = []
+# funcNameAndAddrBothNotInNamesDict = {}
+# for funcSymNum, eachFuncSymDict in enumerate(functionsSymbolDictList, start=1):
+#   funcName = eachFuncSymDict["name"]
+#   funcAddrStr = eachFuncSymDict["address"]
+#   funcAddr = int(funcAddrStr, base=16)
+#   isFuncNameInNames = funcName in nameNameList
+#   isFuncAddrInNames = funcAddr in nameAddrList
+#   curInfoStr = ""
+#   if (isFuncNameInNames==False) and (isFuncAddrInNames==False):
+#     funcNameAndAddrBothNotInNamesDict[funcName] = funcAddr
+#     curInfoStr = "both not in Names: [0x0%X] %s" % (funcAddr, funcName)
+#   elif (isFuncNameInNames == False):
+#     funcNameNotInNamesList.append(funcName)
+#     curInfoStr = "name not in Names: %s" % funcName
+#   elif (isFuncAddrInNames == False):
+#     funcAddrNotInNamesList.append(funcAddr)
+#     curInfoStr = "address not in Names: [0x%X]" % funcAddr
+#   else:
+#     funcNameAndAddrBothInNamesDict[funcName] = funcAddr
+#     curInfoStr = "both in Names: [0x0%X] %s" % (funcAddr, funcName)
+#   print("[%d/%d] %s" % (funcSymNum, validFunctionsSymbolCount, curInfoStr))
+
+#   # isFuncInNames = isFuncNameInNames and isFuncAddrInNames
+#   # if not isFuncInNames:
+#   #   isAllFuncSymInNames = False
+#   #   break
+# # print("isAllFuncSymInNames=%s" % isAllFuncSymInNames)
+
+# print("Total valid Functions symbol count: %d" % validFunctionsSymbolCount)
+# print("  both name and address in Names count: %d" % len(funcNameAndAddrBothInNamesDict.keys()))
+# print("  function name not in Names count: %d" % len(funcNameNotInNamesList))
+# print("  function address not in Names count: %d" % len(funcAddrNotInNamesList))
+# print("  both name and address not in Names count: %d" % len(funcNameAndAddrBothNotInNamesDict.keys()))
+
+
+namesSymbolDictList = []
+nameTupleIterator = idautils.Names()
+for (nameAddr, nameName) in nameTupleIterator:
+  nameAddrStr = "0x%X" % nameAddr
+  curNamesSymbolDict = {
+     "name": nameName,
+     "address": nameAddrStr,
+  }
+  namesSymbolDictList.append(curNamesSymbolDict)
+namesSymbolCount = len(namesSymbolDictList)
+print("namesSymbolCount=%s" % namesSymbolCount)
+
+print("%s Merging Symbols %s" % ("-"*30, "-"*30))
+
+idaSymbolDictList = functionsSymbolDictList + namesSymbolDictList
+totalIdaSymbolCount = len(idaSymbolDictList)
+print("totalIdaSymbolCount=%s" % totalIdaSymbolCount)
+
+print("%s Summary Info %s" % ("="*40, "="*40))
+
+print("Total IDA symbols count: %d" % totalIdaSymbolCount)
+print("  Functions symbol count: %d" % validFunctionsSymbolCount)
+print("    Totaol Functions count: %d" % totalFunctionsCount)
+print("    Invalid Functions symbol count: %d" % invalidFunctionsSymbolCount)
+print("  Names symbol count: %d" % namesSymbolCount)
+
+if isExportToFile:
+  print("Exporting %d IDA symbol to" % totalIdaSymbolCount)
+  print("  folder: %s" % outputFolder)
+  print("  file: %s" % outputFullFilename)
+  saveJsonToFile(outputFullFilename, idaSymbolDictList)
+  print("Export complete")
