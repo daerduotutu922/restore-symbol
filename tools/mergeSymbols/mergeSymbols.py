@@ -1,6 +1,6 @@
 # Function: Merge symbols from exported from IDA (functions), restore-symbol restored, scanned Objc block
 # Author: Crifan Li
-# Update: 20231117
+# Update: 20231121
 
 import os
 import json
@@ -8,46 +8,35 @@ from datetime import datetime,timedelta
 from datetime import time  as datetimeTime
 import codecs
 import copy
-
-# import cxxfilt
-
-# symNameList = [
-#   "N3foo12BarExceptionE",
-#   "_ZN7mangled3fooEd",
-#   "_ZNSt22condition_variable_anyD2Ev",
-
-#   # "s6FindMy15FMTaskSchedulerC6sharedACvau",
-#   # "_s6FindMy15FMTaskSchedulerC6sharedACvau",
-  
-#   "_$s6FindMy15FMTaskSchedulerC6sharedACvau",
-#   "_$sSo8NSBundleC15WAContactPickerE07contactC15ResourcesBundleABSgvgZ",
-#   "_$sSo8NSBundleC15WAContactPickerE07contactC15ResourcesBundleABSgvsZ",
-#   "_$sSo8NSBundleC15WAContactPickerE07contactC15ResourcesBundleABSgvMZ",
-# ]
-# for symName in symNameList:
-#   # demangledSymName = cxxfilt.demangle(symName, external_only=False)
-#   demangledSymName = cxxfilt.demangle(symName)
-#   print("%s -> %s" % (symName, demangledSymName))
-
-# print()
+import argparse
 
 ################################################################################
 # Config & Settings & Const
 ################################################################################
 
-# curAppName = "WhatsApp"
-# # idaFunctionsSymbolFileName = "WhatsApp_IDAFunctionsSymbol_20231112_174504.json"
-# # idaFunctionsSymbolFileName = "WhatsApp_IDAFunctionsSymbol_ImageBase0x100000000_20231114_114528.json"
-# idaFunctionsSymbolFileName = "WhatsApp_IDAFunctionsSymbol_omitImportFunc_20231115_115215.json"
-# restoreSymbolObjcSymbolFileName = "WhatsApp_objcNoDupSymbols_20231105.json"
-# idaBlockSymbolFileName = "WhatsApp_block_symbol_20231027_114208.json"
+# appName = "WhatsApp"
+# # idaSymbolFile = "WhatsApp_IDAFunctionsSymbol_20231112_174504.json"
+# # idaSymbolFile = "WhatsApp_IDAFunctionsSymbol_ImageBase0x100000000_20231114_114528.json"
+# # idaSymbolFile = "WhatsApp_IDAFunctionsSymbol_omitImportFunc_20231115_115215.json"
+# idaSymbolFile = "WhatsApp_IDAFunctionsSymbol_omitImportFunc_20231117_222347.json"
+# objcSymbolFile = "WhatsApp_objcNoDupSymbols_20231105.json"
+# # blockSymbolFile = "WhatsApp_block_symbol_20231027_114208.json"
+# blockSymbolFile = "WhatsApp_blockSymbolsRenamed_20231117_222445.json"
 
-curAppName = "SharedModules"
-# idaFunctionsSymbolFileName = "SharedModules_IDAFunctionsSymbol_20231112_175710.json"
-idaFunctionsSymbolFileName = "SharedModules_IDAFunctionsSymbol_omitImportFunc_20231115_220343.json"
-restoreSymbolObjcSymbolFileName = "SharedModules_objcNoDupSymbols_20231108.json"
-# idaBlockSymbolFileName = "SharedModules_block_symbol_20231027_153048.json"
-idaBlockSymbolFileName = "SharedModules_blockSymbolsRenamed_20231117_220017.json"
+# appName = "SharedModules"
+# # idaSymbolFile = "SharedModules_IDAFunctionsSymbol_20231112_175710.json"
+# # idaSymbolFile = "SharedModules_IDAFunctionsSymbol_omitImportFunc_20231115_220343.json"
+# # idaSymbolFile = "SharedModules_IDAFunctionsSymbol_omitImportFunc_20231117_224041.json"
+# idaSymbolFile = "SharedModules_IDASymbols_FunctionsNames_20231119_165858.json"
+# objcSymbolFile = "SharedModules_objcNoDupSymbols_20231108.json"
+# # blockSymbolFile = "SharedModules_block_symbol_20231027_153048.json"
+# # blockSymbolFile = "SharedModules_blockSymbolsRenamed_20231117_220017.json"
+# blockSymbolFile = "SharedModules_blockSymbolsRenamed_20231117_224120.json"
+
+mainDelimiter = "="*20
+
+# enableMergeBlockSymbol = True
+# enableMergeBlockSymbol = False
 
 ################################################################################
 # Global Variable
@@ -57,10 +46,10 @@ curFilePath = os.path.abspath(__file__)
 curFolder = os.path.dirname(curFilePath)
 print("curFilePath=%s, curFolder=%s" % (curFilePath, curFolder))
 
-inputFolderName = os.path.join("input", curAppName)
-idaFunctionsSymbolFile = os.path.join(curFolder, inputFolderName, idaFunctionsSymbolFileName)
-restoreSymbolObjcSymbolFile = os.path.join(curFolder, inputFolderName, restoreSymbolObjcSymbolFileName)
-idaBlockSymbolFile = os.path.join(curFolder, inputFolderName, idaBlockSymbolFileName)
+# inputFolderName = os.path.join("input", appName)
+# idaSymbolsFile = os.path.join(curFolder, inputFolderName, idaSymbolFile)
+# objcSymbolFile = os.path.join(curFolder, inputFolderName, objcSymbolFile)
+# blockSymbolFile = os.path.join(curFolder, inputFolderName, blockSymbolFile)
 
 ################################################################################
 # Util Function
@@ -118,227 +107,257 @@ def loadJsonFromFile(fullFilename, fileEncoding="utf-8"):
 # Main
 ################################################################################
 
-# # for debug: rename block symbol name for same address
-# blockSymList = loadJsonFromFile(idaBlockSymbolFile)
-# blockSymNum = len(blockSymList)
-# print("  blockSymNum=%s" % blockSymNum)
+def mergeSymbols(
+    appName=None,
+    idaSymbolsFile=None,
+    objcSymbolFile=None,
+    blockSymbolFile=None,
+    outputSymbolFile=None,
+  ):
+  print("Merge symbols for app: %s" % appName)
 
-# blockNameAddrListDict = {}
+  mergedSymbolsDict = {}
 
-# for eachBlockSym in blockSymList:
-#   blockSymName = eachBlockSym["name"]
-#   blockSymAddrStr = eachBlockSym["address"]
-#   blockSymAddr = int(blockSymAddrStr, base=16)
-#   if blockSymName in blockNameAddrListDict.keys():
-#     existAddrList = blockNameAddrListDict[blockSymName]
-#     existAddrList.append(blockSymAddr)
-#     existAddrList.sort()
-#   else:
-#     addrList = [blockSymAddr]
-#     blockNameAddrListDict[blockSymName] = addrList
+  if idaSymbolsFile:
+    print("%s Load IDA (Functons, Names) symbols %s" % (mainDelimiter, mainDelimiter))
+    print("  IDA symbols file: %s" % idaSymbolFile)
+    idaSymbolsList = loadJsonFromFile(idaSymbolsFile)
+    print("  len(idaSymbolsList)=%s" % len(idaSymbolsList))
 
-# addrNewNameDict = {}
-# sameNameDiffAddrCount = 0
-# for eachSymName, eachSymAddrList in blockNameAddrListDict.items():
-#   eachSymAddrListLen = len(eachSymAddrList)
-#   if eachSymAddrListLen > 1:
-#     sameNameDiffAddrCount += 1
-#     for eachSymAddrNum, eachSymAddr in enumerate(eachSymAddrList, start=1):
-#       newSymName = "%s_%d" % (eachSymName, eachSymAddrNum)
-#       addrNewNameDict[eachSymAddr] = newSymName
-#       print("[0x%X] = %s" % (eachSymAddr, newSymName))
-# print("Found same name diff address: %d" % sameNameDiffAddrCount)
+    print("  Parsing IDA symbols")
 
-# renamedSameNameDiffAddrCount = 0
-# for eachBlockSymDict in blockSymList:
-#   blockSymName = eachBlockSymDict["name"]
-#   blockSymAddrStr = eachBlockSymDict["address"]
-#   blockSymAddr = int(blockSymAddrStr, base=16)
-#   if blockSymAddr in addrNewNameDict.keys():
-#     newBlockSymName = addrNewNameDict[blockSymAddr]
-#     eachBlockSymDict["name"] = newBlockSymName
-#     print("name: %s -> %s " % (blockSymName, newBlockSymName))
-#     renamedSameNameDiffAddrCount += 1
-# print("Has renamed for same name diff address: %d" % renamedSameNameDiffAddrCount)
+    idaSymbolsDict = {}
+    for eachSymbolDict in idaSymbolsList:
+      symName = eachSymbolDict["name"]
+      symAddStr = eachSymbolDict["address"]
+      # to support hex, both capital and lowercase
+      symAddrInt = int(symAddStr, base=16)
+      idaSymbolsDict[symName] = {
+        "address": symAddrInt,
+      }
 
+      if "size" in eachSymbolDict:
+        # for Names, no "size"
+        symSizeStr = eachSymbolDict["size"]
+        symSizeInt = int(symSizeStr, base=16)
+        idaSymbolsDict[symName]["size"] = symSizeInt
 
-outputBaseFilename = "mergedSymbols"
-outputFilename = "%s_%s_%s.json" % (curAppName, outputBaseFilename, getCurDatetimeStr())
-# print("outputFilename=%s" % outputFilename)
-outputFullFilename = os.path.join(curFolder, "output", outputFilename)
-# print("outputFullFilename=%s" % outputFullFilename)
+    idaSymbolsDictKeys = idaSymbolsDict.keys()
+    print("  Merged IDA symbol count %d" % len(idaSymbolsDictKeys))
 
-print("1. Load IDA exported symbols: %s" % idaFunctionsSymbolFileName)
-idaFunctionsSymbolList = loadJsonFromFile(idaFunctionsSymbolFile)
-print("  len(idaFunctionsSymbolList)=%s" % len(idaFunctionsSymbolList))
+    mergedSymbolsDict = copy.deepcopy(idaSymbolsDict)
+    mergedSymbolsDictKeys = mergedSymbolsDict.keys()
+    # print("  len(mergedSymbolsDictKeys)=%s" % len(mergedSymbolsDictKeys))
 
-print("  Parsing IDA symbols")
+  if objcSymbolFile:
+    print("%s Merge (restore-symbol restored) ObjC symbols %s" % (mainDelimiter, mainDelimiter))
+    print("  Objc symbols file: %s" % objcSymbolFile)
 
-idaFunctionsSymbolDict = {}
-for eachSymbolDict in idaFunctionsSymbolList:
-  symName = eachSymbolDict["name"]
-  symAddStr = eachSymbolDict["address"]
-  # to support hex, both capital and lowercase
-  symAddInt = int(symAddStr, base=16)
-  symSizeStr = eachSymbolDict["size"]
-  symSizeInt = int(symSizeStr, base=16)
+    # rs = restore-symbol
+    rsObjcSymbolList = loadJsonFromFile(objcSymbolFile)
+    rsObjcSymbolNum = len(rsObjcSymbolList)
+    print("  rsObjcSymbolNum=%s" % rsObjcSymbolNum)
 
-  idaFunctionsSymbolDict[symName] = {
-    "address": symAddInt,
-    "size": symSizeInt,
-  }
+    # # for debug
+    # symbolDictList_objcNotInIda = []
 
-idaFunctionsSymbolDictKeys = idaFunctionsSymbolDict.keys()
-print("  len(idaFunctionsSymbolDictKeys)=%s" % len(idaFunctionsSymbolDictKeys))
+    SymbolNum_RsInIda = 0
+    SymbolNum_RsInIda_AddrSame = 0
+    SymbolNum_RsInIda_AddrNotSame = 0
+    SymbolNum_RsNotInIda = 0
+    for curRsObjSymDict in rsObjcSymbolList:
+      rsSymName = curRsObjSymDict["name"]
+      rsSymAddrStr = curRsObjSymDict["address"]
+      rsSymAddr = int(rsSymAddrStr, base=16)
+      rsSymTypeStr = curRsObjSymDict["type"]
+      rsSymType = int(rsSymTypeStr, base=16)
 
-mergedSymbolsDict = copy.deepcopy(idaFunctionsSymbolDict)
-mergedSymbolsDictKeys = mergedSymbolsDict.keys()
-print("  len(mergedSymbolsDictKeys)=%s" % len(mergedSymbolsDictKeys))
-
-print("2. Merge restore-symbol restored Objc symbols: %s" % restoreSymbolObjcSymbolFileName)
-# rs = restore-symbol
-rsObjcSymbolList = loadJsonFromFile(restoreSymbolObjcSymbolFile)
-rsObjcSymbolNum = len(rsObjcSymbolList)
-print("  rsObjcSymbolNum=%s" % rsObjcSymbolNum)
-
-SymbolNum_RsInIda = 0
-SymbolNum_RsInIda_AddrSame = 0
-SymbolNum_RsInIda_AddrNotSame = 0
-SymbolNum_RsNotInIda = 0
-for curRsObjSymDict in rsObjcSymbolList:
-  rsSymName = curRsObjSymDict["name"]
-  rsSymAddrStr = curRsObjSymDict["address"]
-  rsSymAddr = int(rsSymAddrStr, base=16)
-  rsSymTypeStr = curRsObjSymDict["type"]
-  rsSymType = int(rsSymTypeStr, base=16)
-
-  # for debug
-  if not rsSymType:
-    print("  Abnormal: restore-symbol symbol no type for: %s" % curRsObjSymDict)
-
-  if rsSymName in mergedSymbolsDictKeys:
-    SymbolNum_RsInIda += 1
-    idaSymDict = mergedSymbolsDict[rsSymName]
-    idaSymAddr = idaSymDict["address"]
-    if (rsSymAddr == idaSymAddr): # if not same -> use(keep) IDA symbol
-      SymbolNum_RsInIda_AddrSame += 1
-      idaSymDict["type"] = rsSymType
-    else:
-      SymbolNum_RsInIda_AddrNotSame += 1
-  else:
-    SymbolNum_RsNotInIda += 1
-    mergedSymbolsDict[rsSymName] = {
-      "address": rsSymAddr,
-      "type": rsSymType,
-    }
-
-print("  Total restored symbol number: %s" % rsObjcSymbolNum)
-print("   in IDA: %s" % SymbolNum_RsInIda)
-print("     in IDA, same address: %s" % SymbolNum_RsInIda_AddrSame)
-print("     in IDA, not same address: %s" % SymbolNum_RsInIda_AddrNotSame)
-print("   not in IDA: %s" % SymbolNum_RsNotInIda)
-
-print("3. Merge IDA scanned objc block symbols: %s" % idaBlockSymbolFileName)
-idaBlockSymbolList = loadJsonFromFile(idaBlockSymbolFile)
-idaBlockSymbolNum = len(idaBlockSymbolList)
-print("  idaBlockSymbolNum=%s" % idaBlockSymbolNum)
-
-# Note: above symbol list have changed, so need updated
-mergedSymbolsDictKeys = mergedSymbolsDict.keys()
-
-# generate new address: name dict, for later use
-mergedSymbolsAddrNameDict = {}
-for eachSymName, eachSymDict in mergedSymbolsDict.items():
-  eachSymAddr = eachSymDict["address"]
-  mergedSymbolsAddrNameDict[eachSymAddr] = eachSymName
-
-toRemoveSameAddrSymbolNameDict = []
-
-SymbolNum_BlockInMerged = 0
-SymbolNum_BlockInMerged_AddrSame = 0
-SymbolNum_BlockInMerged_AddrNotSame = 0
-SymbolNum_BlockNotInMerged = 0
-SymbolNum_BlockNotInMerged_SameAddr = 0
-for blockSymDict in idaBlockSymbolList:
-  blockSymName = blockSymDict["name"]
-  blockSymAddrStr = blockSymDict["address"]
-  blockSymAddr = int(blockSymAddrStr, base=16)
-
-  if blockSymName in mergedSymbolsDictKeys:
-    SymbolNum_BlockInMerged += 1
-    mergedSymDict = mergedSymbolsDict[blockSymName]
-    mergedSymAddr = mergedSymDict["address"]
-    if (blockSymAddr == mergedSymAddr):
-      # if same address -> use/keep merged symbol
-      SymbolNum_BlockInMerged_AddrSame += 1
-    else:
-      print("Same name=%s, but diff addr: merged=0x%X vs block=0x%X" % (blockSymName, mergedSymAddr, blockSymAddr))
-      SymbolNum_BlockInMerged_AddrNotSame += 1
-  else:
-    SymbolNum_BlockNotInMerged += 1
-
-    # if not same name -> use/keep block symbol
-    # for eachSymbolName in mergedSymbolsDictKeys:
-    #   echSymbolDict = mergedSymbolsDict[eachSymbolName]
-    #   eachSymbolAddr = echSymbolDict["address"]
-    #   if eachSymbolAddr == blockSymAddr:
-    #     toRemoveSameAddrSymbolNameDict.append(eachSymbolName)
-
-    # assume only one, if exist same address
-    if blockSymAddr in mergedSymbolsAddrNameDict.keys():
-      SymbolNum_BlockNotInMerged_SameAddr += 1
-      sameAddrSymName = mergedSymbolsAddrNameDict[blockSymAddr]
-      toRemoveSameAddrSymbolNameDict.append(sameAddrSymName)
-
-    mergedSymbolsDict[blockSymName] = {
-      "address": blockSymAddr,
-    }
-
-for eachToRemoveSymName in toRemoveSameAddrSymbolNameDict:
-  mergedSymbolsDict.pop(eachToRemoveSymName)
-
-print("  Total block symbol number: %s" % idaBlockSymbolNum)
-print("   in merged: %s" % SymbolNum_BlockInMerged)
-print("     in merged, same address: %s" % SymbolNum_BlockInMerged_AddrSame)
-print("     in merged, not same address: %s" % SymbolNum_BlockInMerged_AddrNotSame)
-print("   not in merged: %s" % SymbolNum_BlockNotInMerged)
-print("     same address(replaced name): %s" % SymbolNum_BlockNotInMerged_SameAddr)
-
-print("4. Output final merged symbols : %s" % outputFilename)
-outputSymbolList = []
-for symName, symDict in mergedSymbolsDict.items():
-  outputSymAddr = symDict["address"]
-  outputSymAddrStr = "0x%X" % outputSymAddr
-  outputSymDict = {
-    "name": symName,
-    "address": outputSymAddrStr,
-  }
-
-  if "type" in symDict:
-    outputSymType = symDict["type"]
-    if outputSymType != None:
-      outputSymTypeStr = "0x%X" % outputSymType
-      outputSymDict["type"] = outputSymTypeStr
-    else:
       # for debug
-      print("Abnormal: type is none for %s,%s" % (symName, symDict))
+      if not rsSymType:
+        print("  Abnormal: restore-symbol symbol no type for: %s" % curRsObjSymDict)
 
-  if "size" in symDict:
-    outputSymSize = symDict["size"]
-    if outputSymSize != None:
-      outputSymSizeStr = "0x%X" % outputSymSize
-      outputSymDict["size"] = outputSymSizeStr
-    else:
-      # for debug
-      print("Abnormal: size is none for %s,%s" % (symName, symDict))
+      if rsSymName in mergedSymbolsDictKeys:
+        SymbolNum_RsInIda += 1
+        idaSymDict = mergedSymbolsDict[rsSymName]
+        idaSymAddr = idaSymDict["address"]
+        if (rsSymAddr == idaSymAddr): # if not same -> use(keep) IDA symbol
+          SymbolNum_RsInIda_AddrSame += 1
+          idaSymDict["type"] = rsSymType
+        else:
+          SymbolNum_RsInIda_AddrNotSame += 1
+      else:
+        SymbolNum_RsNotInIda += 1
+        mergedSymbolsDict[rsSymName] = {
+          "address": rsSymAddr,
+          "type": rsSymType,
+        }
 
-  outputSymbolList.append(outputSymDict)
+        # # for debug
+        # notInIdaSymbolDict = {
+        #   "name": rsSymName,
+        #   "address": "0x%X" % rsSymAddr,
+        #   "type": "0x%X" % rsSymType,
+        # }
+        # symbolDictList_objcNotInIda.append(notInIdaSymbolDict)
 
-sortedOutputSymbolList = sorted(outputSymbolList, key=lambda eachDict: int(eachDict["address"], base=16))
+    # # for debug
+    # notInIdaObjcSymFilename = "%s_notInIdaObjcSymDictList_%s.json" % (appName, getCurDatetimeStr())
+    # notInIdaObjcSymFullPath = os.path.join(curFolder, "output", notInIdaObjcSymFilename)
+    # saveJsonToFile(notInIdaObjcSymFullPath, symbolDictList_objcNotInIda)
 
-mergedSymbolNum = len(sortedOutputSymbolList)
-print("  Exporting %d symbols to file %s" % (mergedSymbolNum, outputFilename))
-saveJsonToFile(outputFullFilename, sortedOutputSymbolList)
-print("  Exported final merged symbol file %s" % outputFullFilename)
+    # 回去看：name相同，地址不同的背后逻辑
+    # 回去看：ObjC不在IDA中的符号，对应的地址，在IDA中，具体是什么（函数）？
 
-print("")
+    print("  Total restored symbol number: %s" % rsObjcSymbolNum)
+    print("   in IDA: %s" % SymbolNum_RsInIda)
+    print("     in IDA, same address: %s" % SymbolNum_RsInIda_AddrSame)
+    print("     in IDA, not same address: %s" % SymbolNum_RsInIda_AddrNotSame)
+    print("   not in IDA: %s" % SymbolNum_RsNotInIda)
+
+  if blockSymbolFile:
+    print("%s Merge IDA scanned objc block symbols %s" % (mainDelimiter , mainDelimiter))
+    print("  Block symbols file: %s" % blockSymbolFile)
+
+    idaBlockSymbolList = loadJsonFromFile(blockSymbolFile)
+    idaBlockSymbolNum = len(idaBlockSymbolList)
+    print("  idaBlockSymbolNum=%s" % idaBlockSymbolNum)
+
+    # Note: above symbol list have changed, so need updated
+    mergedSymbolsDictKeys = mergedSymbolsDict.keys()
+
+    # generate new address: name dict, for later use
+    mergedSymbolsAddrNameDict = {}
+    for eachSymName, eachSymDict in mergedSymbolsDict.items():
+      eachSymAddr = eachSymDict["address"]
+      mergedSymbolsAddrNameDict[eachSymAddr] = eachSymName
+
+    toRemoveSameAddrSymbolNameDict = []
+
+    SymbolNum_BlockInMerged = 0
+    SymbolNum_BlockInMerged_AddrSame = 0
+    SymbolNum_BlockInMerged_AddrNotSame = 0
+    SymbolNum_BlockNotInMerged = 0
+    SymbolNum_BlockNotInMerged_SameAddr = 0
+    for blockSymDict in idaBlockSymbolList:
+      blockSymName = blockSymDict["name"]
+      blockSymAddrStr = blockSymDict["address"]
+      blockSymAddr = int(blockSymAddrStr, base=16)
+
+      if blockSymName in mergedSymbolsDictKeys:
+        SymbolNum_BlockInMerged += 1
+        mergedSymDict = mergedSymbolsDict[blockSymName]
+        mergedSymAddr = mergedSymDict["address"]
+        if (blockSymAddr == mergedSymAddr):
+          # if same address -> use/keep merged symbol
+          SymbolNum_BlockInMerged_AddrSame += 1
+        else:
+          print("Same name=%s, but diff addr: merged=0x%X vs block=0x%X" % (blockSymName, mergedSymAddr, blockSymAddr))
+          SymbolNum_BlockInMerged_AddrNotSame += 1
+      else:
+        SymbolNum_BlockNotInMerged += 1
+
+        # if not same name -> use/keep block symbol
+        # for eachSymbolName in mergedSymbolsDictKeys:
+        #   echSymbolDict = mergedSymbolsDict[eachSymbolName]
+        #   eachSymbolAddr = echSymbolDict["address"]
+        #   if eachSymbolAddr == blockSymAddr:
+        #     toRemoveSameAddrSymbolNameDict.append(eachSymbolName)
+
+        # assume only one, if exist same address
+        if blockSymAddr in mergedSymbolsAddrNameDict.keys():
+          SymbolNum_BlockNotInMerged_SameAddr += 1
+          sameAddrSymName = mergedSymbolsAddrNameDict[blockSymAddr]
+          toRemoveSameAddrSymbolNameDict.append(sameAddrSymName)
+
+        mergedSymbolsDict[blockSymName] = {
+          "address": blockSymAddr,
+        }
+
+    for eachToRemoveSymName in toRemoveSameAddrSymbolNameDict:
+      mergedSymbolsDict.pop(eachToRemoveSymName)
+
+    print("  Total block symbol number: %s" % idaBlockSymbolNum)
+    print("   in merged: %s" % SymbolNum_BlockInMerged)
+    print("     in merged, same address: %s" % SymbolNum_BlockInMerged_AddrSame)
+    print("     in merged, not same address: %s" % SymbolNum_BlockInMerged_AddrNotSame)
+    print("   not in merged: %s" % SymbolNum_BlockNotInMerged)
+    print("     same address(replaced name): %s" % SymbolNum_BlockNotInMerged_SameAddr)
+
+  if outputSymbolFile:
+    print("%s Output merged symbols %s" % (mainDelimiter , mainDelimiter))
+    print("  Output file: %s" % outputSymbolFile)
+
+    outputSymbolList = []
+    for symName, symDict in mergedSymbolsDict.items():
+      outputSymAddr = symDict["address"]
+      outputSymAddrStr = "0x%X" % outputSymAddr
+      outputSymDict = {
+        "name": symName,
+        "address": outputSymAddrStr,
+      }
+
+      if "type" in symDict:
+        outputSymType = symDict["type"]
+        if outputSymType != None:
+          outputSymTypeStr = "0x%X" % outputSymType
+          outputSymDict["type"] = outputSymTypeStr
+        else:
+          # for debug
+          print("Abnormal: type is none for %s,%s" % (symName, symDict))
+
+      if "size" in symDict:
+        outputSymSize = symDict["size"]
+        if outputSymSize != None:
+          outputSymSizeStr = "0x%X" % outputSymSize
+          outputSymDict["size"] = outputSymSizeStr
+        else:
+          # for debug
+          print("Abnormal: size is none for %s,%s" % (symName, symDict))
+
+      outputSymbolList.append(outputSymDict)
+
+    sortedOutputSymbolList = sorted(outputSymbolList, key=lambda eachDict: int(eachDict["address"], base=16))
+
+    mergedSymbolNum = len(sortedOutputSymbolList)
+    print("  Exporting %d symbols to file %s" % (mergedSymbolNum, outputSymbolFile))
+    saveJsonToFile(outputSymbolFile, sortedOutputSymbolList)
+    print("  Exported complete")
+
+
+if __name__ == "__main__":
+  newParser = argparse.ArgumentParser()
+  newParser.add_argument("-a", "--app-name", type=str, dest="appName", default=None, help="app name")
+  newParser.add_argument("-d", "--ida-symbol-file", type=str, dest="idaSymbolFile", default=None, help="IDA (Functions, Names) symbol file")
+  newParser.add_argument("-c", "--objc-symbol-file", type=str, dest="objcSymbolFile", default=None, help="ObjC symbol file")
+  newParser.add_argument("-b", "--block-symbol-file", type=str, dest="blockSymbolFile", default=None, help="Block symbol file")
+  newParser.add_argument("-o", "--output-symbol-file", type=str, dest="outputSymbolFile", default=None, help="Output merged symbol file")
+  args = newParser.parse_args()
+  print("%s Parsing input arguments %s" % (mainDelimiter , mainDelimiter))
+  print("args=%s" % args)
+
+  # # for debug
+  # args.appName="WhatsApp"
+  # args.idaSymbolFile="input/WhatsApp/WhatsApp_IDASymbols_FunctionsNames_20231121_092816.json"
+  # args.objcSymbolFile="input/WhatsApp/WhatsApp_objcNoDupSymbols_20231105.json"
+
+  appName = args.appName
+  print("appName=%s" % appName)
+  idaSymbolFile = args.idaSymbolFile
+  print("idaSymbolFile=%s" % idaSymbolFile)
+  objcSymbolFile = args.objcSymbolFile
+  print("objcSymbolFile=%s" % objcSymbolFile)
+  blockSymbolFile = args.blockSymbolFile
+  print("blockSymbolFile=%s" % blockSymbolFile)
+  outputSymbolFile = args.outputSymbolFile
+  print("outputSymbolFile=%s" % outputSymbolFile)
+  if (not outputSymbolFile):
+    outputSymbolFile = "%s_mergedSymbols_%s.json" % (appName, getCurDatetimeStr())
+    print("outputSymbolFile=%s" % outputSymbolFile)
+
+  mergeSymbols(
+    appName=appName,
+    idaSymbolsFile=idaSymbolFile,
+    objcSymbolFile=objcSymbolFile,
+    blockSymbolFile=blockSymbolFile,
+    outputSymbolFile=outputSymbolFile
+  )
