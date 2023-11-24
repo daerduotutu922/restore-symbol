@@ -1,6 +1,6 @@
 # Function: IDA script plugin, export (functions) symbol from IDA (for Mach-O format)
 # Author: Crifan Li
-# Update: 20231119
+# Update: 20231124
 
 # import idc
 # import sys
@@ -410,16 +410,24 @@ print("%s Names Symbols %s" % ("-"*30, "-"*30))
 # print("  function address not in Names count: %d" % len(funcAddrNotInNamesList))
 # print("  both name and address not in Names count: %d" % len(funcNameAndAddrBothNotInNamesDict.keys()))
 
-
+totalNamesCount = 0
+emptyNameCount = 0
 namesSymbolDictList = []
 nameTupleIterator = idautils.Names()
 for (nameAddr, nameName) in nameTupleIterator:
-  nameAddrStr = "0x%X" % nameAddr
-  curNamesSymbolDict = {
-     "name": nameName,
-     "address": nameAddrStr,
-  }
-  namesSymbolDictList.append(curNamesSymbolDict)
+  totalNamesCount += 1
+  if nameName:
+    nameAddrStr = "0x%X" % nameAddr
+    curNamesSymbolDict = {
+      "name": nameName,
+      "address": nameAddrStr,
+    }
+    namesSymbolDictList.append(curNamesSymbolDict)
+  else:
+    emptyNameCount += 1
+    if isVerbose:
+      print("Omit: empty name for [0x%X]" % nameAddr)
+
 namesSymbolCount = len(namesSymbolDictList)
 print("namesSymbolCount=%s" % namesSymbolCount)
 
@@ -433,9 +441,11 @@ print("%s Summary Info %s" % ("="*40, "="*40))
 
 print("Total IDA symbols count: %d" % totalIdaSymbolCount)
 print("  Functions symbol count: %d" % validFunctionsSymbolCount)
-print("    Totaol Functions count: %d" % totalFunctionsCount)
+print("    Total Functions count: %d" % totalFunctionsCount)
 print("    Invalid Functions symbol count: %d" % invalidFunctionsSymbolCount)
 print("  Names symbol count: %d" % namesSymbolCount)
+print("    Total Names count: %d" % totalNamesCount)
+print("    Empty Names count: %d" % emptyNameCount)
 
 if isExportToFile:
   print("Exporting %d IDA symbol to" % totalIdaSymbolCount)
