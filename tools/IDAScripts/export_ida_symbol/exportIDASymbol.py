@@ -1,4 +1,4 @@
-# Function: IDA script plugin, export (functions) symbol from IDA (for Mach-O format)
+# Function: IDA script plugin, export (Functions, Names) symbol from IDA (for Mach-O format)
 # Author: Crifan Li
 # Update: 20231124
 
@@ -356,6 +356,7 @@ for curFunc in functionAddrList:
     invalidFunctionsSymbolCount += 1
 
 validFunctionsSymbolCount = len(functionsSymbolDictList)
+print("validFunctionsSymbolCount=%s" % validFunctionsSymbolCount)
 
 print("%s Names Symbols %s" % ("-"*30, "-"*30))
 
@@ -410,23 +411,72 @@ print("%s Names Symbols %s" % ("-"*30, "-"*30))
 # print("  function address not in Names count: %d" % len(funcAddrNotInNamesList))
 # print("  both name and address not in Names count: %d" % len(funcNameAndAddrBothNotInNamesDict.keys()))
 
+# for later omit duplicated symbol
+funcSymDict_nameKey = {}
+funcSymDict_addressKey = {}
+for eachFuncSymDict in functionsSymbolDictList:
+  eachFuncSymName = eachFuncSymDict["name"]
+  eachFuncSymAddrStr = eachFuncSymDict["address"]
+  eachFuncSymAddr = int(eachFuncSymAddrStr, base=16)
+
+  # # for debug
+  # isVerbose = True
+
+  # # here makesure no duplicated (name or address) -> no need to check
+  # if eachFuncSymName in funcSymDict_nameKey:
+  #   if isVerbose:
+  #     oldSameNameDict = funcSymDict_nameKey[eachFuncSymName]
+  #     print("Not add for Functions dup name: old=%s <-> new=%s" % (oldSameNameDict, eachFuncSymDict))
+  # else:
+  #   funcSymDict_nameKey[eachFuncSymName] = eachFuncSymDict
+
+  # if eachFuncSymAddr in funcSymDict_addressKey:
+  #   if isVerbose:
+  #     oldSameAddrDict = funcSymDict_addressKey[eachFuncSymAddr]
+  #     print("Not add for Functions dup address: old=%s <-> new=%s" % (oldSameAddrDict, eachFuncSymDict))
+  # else:
+  #   funcSymDict_addressKey[eachFuncSymAddr] = eachFuncSymDict
+  
+  funcSymDict_nameKey[eachFuncSymName] = eachFuncSymDict
+  funcSymDict_addressKey[eachFuncSymAddr] = eachFuncSymDict
+
+print("len(funcSymDict_nameKey.keys())=%d" % len(funcSymDict_nameKey.keys()))
+print("len(funcSymDict_addressKey.keys())=%d" % len(funcSymDict_addressKey.keys()))
+# if two len not same with above validFunctionsSymbolCount -> need Attention -> exist duplicated function symbol
+
+# # for debug
+# isVerbose = False
+
 totalNamesCount = 0
-emptyNameCount = 0
+invalidNameCount = 0
+dupInFuncCount = 0
 namesSymbolDictList = []
 nameTupleIterator = idautils.Names()
 for (nameAddr, nameName) in nameTupleIterator:
   totalNamesCount += 1
-  if nameName:
-    nameAddrStr = "0x%X" % nameAddr
-    curNamesSymbolDict = {
-      "name": nameName,
-      "address": nameAddrStr,
-    }
-    namesSymbolDictList.append(curNamesSymbolDict)
+  if nameName and (nameAddr != None):
+    isDupNameInFunc = nameName in funcSymDict_nameKey.keys()
+    isDupAddrInFunc = nameAddr in funcSymDict_addressKey.keys()
+    if isDupNameInFunc or isDupAddrInFunc:
+      dupInFuncCount += 1
+      if isVerbose:
+        if isDupNameInFunc and isDupAddrInFunc:
+          print("Dup name and address in functions for Names: [0x%X] %s" % (nameAddr, nameName))
+        elif isDupNameInFunc:
+          print("Dup name in functions for Names: %s" % nameName)
+        elif isDupAddrInFunc:
+          print("Dup address in functions for Names: [0x%X]" % nameAddr)
+    else:
+      nameAddrStr = "0x%X" % nameAddr
+      curNamesSymbolDict = {
+        "name": nameName,
+        "address": nameAddrStr,
+      }
+      namesSymbolDictList.append(curNamesSymbolDict)
   else:
-    emptyNameCount += 1
+    invalidNameCount += 1
     if isVerbose:
-      print("Omit: empty name for [0x%X]" % nameAddr)
+      print("Omit: invalid Name for: [0x%X] %s" % (nameAddr, nameName))
 
 namesSymbolCount = len(namesSymbolDictList)
 print("namesSymbolCount=%s" % namesSymbolCount)
@@ -445,7 +495,8 @@ print("    Total Functions count: %d" % totalFunctionsCount)
 print("    Invalid Functions symbol count: %d" % invalidFunctionsSymbolCount)
 print("  Names symbol count: %d" % namesSymbolCount)
 print("    Total Names count: %d" % totalNamesCount)
-print("    Empty Names count: %d" % emptyNameCount)
+print("    Duplicated Names count: %d" % dupInFuncCount)
+print("    Invalid Names count: %d" % invalidNameCount)
 
 if isExportToFile:
   print("Exporting %d IDA symbol to" % totalIdaSymbolCount)
