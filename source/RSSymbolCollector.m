@@ -174,10 +174,14 @@
 }
 
 - (uint8)n_sectForAddress:(uint64)address{
+    BOOL isValidInSegmentButNotInAnySection = FALSE;
+    CDLCSegment* addrInsideSeg = NULL;
+
     // for debug
     bool isNeedDebug = false;
 //    if (0x102EAC12C == address){
-    if (0x103A86DD0 == address){
+//    if (0x103A86DD0 == address){
+    if (0x100000000 == address){
         isNeedDebug = true;
         NSLog(@"debug: 0x%llX", address);
     }
@@ -186,13 +190,19 @@
     for (id loadCommand in _machOFile.loadCommands) {
         if ([loadCommand isKindOfClass:[CDLCSegment class]]){
             CDLCSegment* seg = (CDLCSegment *)loadCommand;
+//            NSUInteger segVmaddr = [seg vmaddr];
+//            NSUInteger segFilesize = [seg filesize];
+//            uint64_t segStartAddr = (uint64_t)segVmaddr;
+//            uint64_t segEndAddr = segStartAddr + (uint64_t)segFilesize;
+//            BOOL isValidAddrInSeg = (address >= segStartAddr) && (address < segEndAddr);
 
             if (isNeedDebug){
                 NSLog(@"segment=%@", seg);
+//                NSLog(@"  segment addr: [0x%llX-0x%llX] => isValidAddrInSeg=%d", segStartAddr, segEndAddr, isValidAddrInSeg);
             }
 
-            bool isContainAddr = [seg containsAddress:address];
-            if(isContainAddr) {
+            bool isValidAddrInSeg = [seg containsAddress:address];
+            if(isValidAddrInSeg) {
                 for (CDSection * section in [seg sections]){
                     if (isNeedDebug){
                         NSLog(@"section=%@", section);
@@ -203,6 +213,9 @@
                         return n_sect;
                     }
                 }
+                
+                isValidInSegmentButNotInAnySection = TRUE;
+                addrInsideSeg = seg;
             } else {
                 if (isNeedDebug){
                     NSLog(@"Not contain address 0x%llX for segment: %@", address, seg);
@@ -212,14 +225,25 @@
             }
         } else {
             if (isNeedDebug){
-                NSLog(@"Omit check for not CDLCSegment: %@", loadCommand);
+                NSLog(@"Omit check for non CDLCSegment: %@", loadCommand);
             }
         }
     }
-
-    NSLog(@"Address(%llx) not found in the image", address);
-    exit(1);
-    return 1;
+    
+    if(isValidInSegmentButNotInAnySection){
+        // for valid address in segment, but not in any section
+        // eg: 0x100000000, 0x100000FA4, ...
+        // return n_sect=0
+        n_sect = 0;
+        if (isNeedDebug){
+            NSLog(@"return n_sect=0 for address 0x%llX, valid in segment %@, but not inside any section", address, addrInsideSeg);
+        }
+        return n_sect;
+    } else {
+        NSLog(@"Address (0x%llx) not found in the image", address);
+        exit(1);
+        return 1;
+    }
 }
 
 
