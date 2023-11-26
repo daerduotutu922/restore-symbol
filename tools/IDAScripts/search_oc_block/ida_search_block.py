@@ -3,6 +3,9 @@
 """
 Changelog:
 
+[20231126]
+1. support for writeback, support keep old non-default name
+
 [20231118]
 1. support writeback/rename (scanned ObjC block symbol name) into IDA
 
@@ -24,6 +27,7 @@ import ida_nalt
 # import operator
 # import csv
 # import sys
+import re
 import json
 import os
 from datetime import datetime,timedelta
@@ -41,6 +45,12 @@ isExportToFile = True
 # enable write back (scanned objc block symbol name) into IDA or not
 enableWriteback = True
 # enableWriteback = False
+print("enableWriteback=%s" % enableWriteback)
+
+if enableWriteback:
+  # isKeepOldNonDefaultName = False
+  isKeepOldNonDefaultName = True
+  print("isKeepOldNonDefaultName=%s" % isKeepOldNonDefaultName)
 
 # verbose log or not
 isLogVerbose = False
@@ -410,7 +420,7 @@ print("    Stack block number: %d" % stackBlockNum)
 if isExportToFile:
   print("%s export to file %s" % ("="*40, "="*40))
 
-  print("Exporting %d symbol to" % blockSymbolNum)
+  print("Exporting %d block symbol to" % blockSymbolNum)
   print("  folder: %s" % outputFolder)
   print("  file: %s" % outputFullFilename)
 
@@ -452,13 +462,28 @@ if enableWriteback:
   # ]
 
   for eachSymDict in blockSymbolDictList:
-      symAddrStr = eachSymDict["address"]
-      symAddr = int(symAddrStr, base=16)
-      symName = eachSymDict["name"]
-      oldSymName = idc.get_func_name(symAddr)
-      if oldSymName != symName:
-        isSetNameOk = idc.set_name(symAddr, symName)
+    symAddrStr = eachSymDict["address"]
+    symAddr = int(symAddrStr, base=16)
+    symName = eachSymDict["name"]
+    oldSymName = idc.get_func_name(symAddr)
+    if oldSymName != symName:
+      isNeedRename = True
+      newSymName = symName
+
+      if isKeepOldNonDefaultName:
+        isDefaultName = False
+        # sub_1001608AC
+        subNameMatch = re.search("sub_[0-9a-zA-Z]+", oldSymName)
+        if subNameMatch:
+          isDefaultName = True
+
+        if not isDefaultName:
+          isNeedRename = False
+
+      if isNeedRename:
+        isSetNameOk = idc.set_name(symAddr, newSymName)
         renameCount += 1
+
         if isLogVerbose:
           # resultStr = "ok" if isSetNameOk == 1 else "fail"
           if isSetNameOk == 1:
@@ -467,11 +492,13 @@ if enableWriteback:
           else:
             resultStr = "fail"
             renameFailCount += 1
-          print("rename %s: [0x%X] %s -> %s" % (resultStr, symAddr, oldSymName, symName))
+          print("rename %s: [0x%X] %s -> %s" % (resultStr, symAddr, oldSymName, newSymName))
       else:
-        noNeedRenameCount += 1
-        if isLogVerbose:
-          print("No need rename for already is: [0x%X] %s" % (symAddr, oldSymName))
+        print("Omit rename for non-default name: [0x%X] old: %s, new: %s" % (symAddr, oldSymName, newSymName))
+    else:
+      noNeedRenameCount += 1
+      if isLogVerbose:
+        print("No need rename for already is: [0x%X] %s" % (symAddr, oldSymName))
 
   print("Total symbol number: %d" % blockSymbolNum)
   print("  Rename number: %d" % renameCount)
