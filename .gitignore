@@ -111,6 +111,10 @@ test/
 tools/mergeSymbols/.vscode/
 tools/mergeSymbols/input/
 tools/mergeSymbols/output/
+tools/mergeSymbols/debug/
+tools/IDAScripts/search_oc_block/output
+tools/IDAScripts/export_ida_symbol/output
+
 *.xcscheme
 IDEWorkspaceChecks.plist
 class-dump
