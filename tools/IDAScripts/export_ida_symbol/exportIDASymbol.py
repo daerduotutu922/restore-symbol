@@ -1,6 +1,6 @@
 # Function: IDA script plugin, export (Functions, Names) symbol from IDA (for Mach-O format)
 # Author: Crifan Li
-# Update: 20231124
+# Update: 20231125
 
 # import idc
 # import sys
@@ -36,6 +36,10 @@ isVerbose = False
 
 isExportToFile = True
 # isExportToFile = False
+
+# enable demangle name or not
+enableDemangleName = True
+# enableDemangleName = False
 
 ################################################################################
 # Util Function
@@ -237,6 +241,14 @@ def testGetSegment():
   print("constSeg: %s -> %s" % (NAME___const, constSeg))
   printSegment(constSeg)
 
+# use IDA to get demangled name for original symbol name
+def getDemangledName(origSymbolName):
+  retName = origSymbolName
+  demangledName = idc.demangle_name(origSymbolName, get_inf_attr(INF_SHORT_DN))
+  if demangledName:
+    retName = demangledName
+  return retName
+
 
 ################################################################################
 # Main
@@ -309,6 +321,8 @@ for curFunc in functionAddrList:
   # curFuncAddrStr = hex(curFunc)
   curFuncAddrStr = "0x%X" % curFunc
   curFuncName = idc.get_func_name(curFunc)
+  if enableDemangleName:
+    curFuncName = getDemangledName(curFuncName)
   # print("curFuncName=%s" % curFuncName)
 
   curFuncAttr_end = idc.get_func_attr(curFunc, attr=FUNCATTR_END)
@@ -342,9 +356,19 @@ for curFunc in functionAddrList:
     # if impFunNum >= 3:
     #   llllll
 
+    # # for debug
+    # if 0x1000062F0 == curFunc:
+    #   isLogCurrent = True
+
     if isLogCurrent:
       # print("[%d] addr=%s, name=%s, size=%s, flags=%s, owner=0x%X" % (toPrintNum, curFuncAddrStr, curFuncName, curFuncSizeStr, curFuncFlagsStr, curFuncAttr_owner))
       print("[%d/%d] addr=%s, name=%s, size=%s" % (curNum, totalFunctionsCount, curFuncAddrStr, curFuncName, curFuncSizeStr))
+    
+    # # for debug
+    # if 0x1000062F0 == curFunc:
+    #   curDemangledFuncName = idc.demangle_name(curFuncName, get_inf_attr(INF_SHORT_DN))
+    #   print("%s -> %s" % (curFuncName, curDemangledFuncName))
+    #   llllll
 
     curSymbolDict = {
       "name": curFuncName,
@@ -455,6 +479,9 @@ nameTupleIterator = idautils.Names()
 for (nameAddr, nameName) in nameTupleIterator:
   totalNamesCount += 1
   if nameName and (nameAddr != None):
+    if enableDemangleName:
+      nameName = getDemangledName(nameName)
+
     isDupNameInFunc = nameName in funcSymDict_nameKey.keys()
     isDupAddrInFunc = nameAddr in funcSymDict_addressKey.keys()
     if isDupNameInFunc or isDupAddrInFunc:
