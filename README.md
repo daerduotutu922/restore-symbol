@@ -1,6 +1,6 @@
 # restore-symbol
 
-* Update: `20231115`
+* Update: `20231127`
 * Forked from: https://github.com/HeiTanBc/restore-symbol
 * Changelog
   * 20231115
@@ -16,6 +16,7 @@
       * Converted to Python 3.x(`print xxx`->`print(xxx)`, `filter`->`list` etc.)
       * Fixed bug: `RecursionError: maximum recursion depth exceeded while calling a Python object`
 * TODO
+  * [ ] update README add usage example for: has IDA(scan & writeback block symbol + export IDA symbol + restore-symbol) and no IDA(ony restore-symbol ObjC symbol)
   * [ ] update `class-dump` to support new load command: `0x80000033`, `0x80000034`
 
 ---

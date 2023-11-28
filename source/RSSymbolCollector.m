@@ -181,10 +181,10 @@
     bool isNeedDebug = false;
 //    if (0x102EAC12C == address){
 //    if (0x103A86DD0 == address){
-    if (0x100000000 == address){
-        isNeedDebug = true;
-        NSLog(@"debug: 0x%llX", address);
-    }
+//    if (0x100000000 == address){
+//        isNeedDebug = true;
+//        NSLog(@"debug: 0x%llX", address);
+//    }
 
     uint8 n_sect = 0;
     for (id loadCommand in _machOFile.loadCommands) {
