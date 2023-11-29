@@ -1,13 +1,13 @@
 # Function: Auto repack ipa file
 # Author: Crifan Li
-# Update: 20231128
+# Update: 20231129
 
 import os
 from datetime import datetime,timedelta
 from datetime import time  as datetimeTime
 import argparse
 import subprocess
-# import shutil
+import shutil
 import zipfile
 
 ################################################################################
@@ -115,6 +115,15 @@ def createFolder(folderFullPath):
   """
   os.makedirs(folderFullPath, exist_ok=True)
 
+def deleteFolder(folderFullPath):
+  """
+    delete folder
+    Note:makesure folder is already existed
+  """
+  if os.path.exists(folderFullPath):
+    shutil.rmtree(folderFullPath)
+
+
 def unzipFile(zipFileFullPath, outputFolder):
   """
     unzip a zip file
@@ -163,8 +172,10 @@ if __name__ == "__main__":
   # args.symbolFile = "/Users/crifan/dev/dev_src/ios_reverse/symbol/restore-symbol/crifan/restore-symbol/tools/mergeSymbols/output/WhatsApp_mergedSymbols_20231121_102056.json"
 
   # symbolFilename_WhatsApp = "WhatsApp_IDASymbols_FunctionsNames_20231126_171758.json"
-  symbolFilename_WhatsApp = "WhatsApp_IDASymbols_FunctionsNames_20231128_213634.json"
-  symbolFilename_SharedModules = "SharedModules_IDASymbols_FunctionsNames_20231128_214111.json"
+  # symbolFilename_WhatsApp = "WhatsApp_IDASymbols_FunctionsNames_20231128_213634.json"
+  # symbolFilename_SharedModules = "SharedModules_IDASymbols_FunctionsNames_20231128_214111.json"
+  symbolFilename_WhatsApp = "WhatsApp_IDASymbols_FunctionsNames_20231129_223621.json"
+  symbolFilename_SharedModules = "SharedModules_IDASymbols_FunctionsNames_20231129_224249.json"
 
   print("args=%s" % args)
   # machoFile = args.machoFile
@@ -201,7 +212,7 @@ if __name__ == "__main__":
   print("symbolFullPath_WhatsApp=%s" % symbolFullPath_WhatsApp)
 
   # call restore-symbol
-  restoreSymbolCmd = "%s -s false -j %s -o %s %s" % (restoreSymbolExec, symbolFullPath_WhatsApp, restoredFullPath_WhatsApp, machoFullPath_WhatsApp)
+  restoreSymbolCmd = "%s -w true -s false -j %s -o %s %s" % (restoreSymbolExec, symbolFullPath_WhatsApp, restoredFullPath_WhatsApp, machoFullPath_WhatsApp)
   print("restoreSymbolCmd=%s" % restoreSymbolCmd)
   # /Users/crifan/dev/dev_src/ios_reverse/symbol/restore-symbol/crifan/restore-symbol/restore-symbol -s false -j /Users/crifan/dev/dev_src/ios_reverse/symbol/restore-symbol/crifan/restore-symbol/tools/mergeSymbols/output/WhatsApp_mergedSymbols_20231121_102056.json -o /Users/crifan/dev/dev_src/ios_reverse/symbol/restore-symbol/crifan/restore-symbol/test/WhatsApp/output/WhatsApp_mergedSymbols_20231121 /Users/crifan/dev/dev_src/ios_reverse/symbol/restore-symbol/crifan/restore-symbol/test/WhatsApp/input/WhatsApp
   isRestoreOk, errMsg = runCommand(restoreSymbolCmd)
@@ -248,7 +259,7 @@ if __name__ == "__main__":
   print("symbolFullPath_SharedModules=%s" % symbolFullPath_SharedModules)
 
   # call restore-symbol
-  restoreSymbolCmd = "%s -s false -j %s -o %s %s" % (restoreSymbolExec, symbolFullPath_SharedModules, restoredFullPath_SharedModules, machoFullPath_SharedModules)
+  restoreSymbolCmd = "%s -w true -s false -j %s -o %s %s" % (restoreSymbolExec, symbolFullPath_SharedModules, restoredFullPath_SharedModules, machoFullPath_SharedModules)
   print("restoreSymbolCmd=%s" % restoreSymbolCmd)
   # /Users/crifan/dev/dev_src/ios_reverse/symbol/restore-symbol/crifan/restore-symbol/restore-symbol -s false -j /Users/crifan/dev/dev_src/ios_reverse/symbol/restore-symbol/crifan/restore-symbol/tools/mergeSymbols/output/WhatsApp_mergedSymbols_20231121_102056.json -o /Users/crifan/dev/dev_src/ios_reverse/symbol/restore-symbol/crifan/restore-symbol/test/WhatsApp/output/WhatsApp_mergedSymbols_20231121 /Users/crifan/dev/dev_src/ios_reverse/symbol/restore-symbol/crifan/restore-symbol/test/WhatsApp/input/WhatsApp
   isRestoreOk, errMsg = runCommand(restoreSymbolCmd)
@@ -308,3 +319,7 @@ if __name__ == "__main__":
   outputZipFilename = "WhatsApp_%s_idaAllSymbols_%s.ipa" % (whatsappVersionStr, curDateStr)
   outputZipFullPath = os.path.join(origWhatsappIpaFolder, outputZipFilename)
   zipFolder(unzipOutputFullPath, outputZipFullPath)
+
+  # do clean work
+  # remove forRepackIpa folder
+  deleteFolder(unzipOutputFullPath)
