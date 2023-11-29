@@ -1,6 +1,6 @@
 # Function: IDA script plugin, export (Functions, Names) symbol from IDA (for Mach-O format)
 # Author: Crifan Li
-# Update: 20231125
+# Update: 20231129
 
 # import idc
 # import sys
@@ -40,6 +40,9 @@ isExportToFile = True
 # enable demangle name or not
 enableDemangleName = True
 # enableDemangleName = False
+
+outputFolder = None
+# outputFolder = "/Users/crifan/dev/dev_src/ios_reverse/symbol/restore-symbol/crifan/restore-symbol/tools/IDAScripts/export_ida_symbol/output"
 
 ################################################################################
 # Util Function
@@ -268,7 +271,8 @@ print("IDA root filename: %s" % idaRootFilename)
 
 inputFileFullPath = ida_nalt.get_input_file_path()
 # print("inputFileFullPath=%s" % inputFileFullPath)
-outputFolder = os.path.dirname(inputFileFullPath)
+if not outputFolder:
+  outputFolder = os.path.dirname(inputFileFullPath)
 # print("outputFolder=%s" % outputFolder)
 
 # changeLogStr = imageBaseStr
@@ -529,5 +533,6 @@ if isExportToFile:
   print("Exporting %d IDA symbol to" % totalIdaSymbolCount)
   print("  folder: %s" % outputFolder)
   print("  file: %s" % outputFullFilename)
-  saveJsonToFile(outputFullFilename, idaSymbolDictList)
+  outputFullPath = os.path.join(outputFolder, outputFullFilename)
+  saveJsonToFile(outputFullPath, idaSymbolDictList)
   print("Export complete")
