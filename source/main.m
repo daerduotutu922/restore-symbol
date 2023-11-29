@@ -24,14 +24,14 @@
 
 //#define RS_OPT_DISABLE_OC_DETECT 1
 //#define RS_OPT_VERSION 2
-//#define RS_OPT_REPLACE_RESTRICT 3
+//#define RS_OPT_isReplaceRestrict 3
 
 #define OPTIONAL_ARGUMENT_IS_PRESENT \
     ((optarg == NULL && optind < argc && argv[optind][0] != '-') \
      ? (bool) (optarg = argv[optind++]) \
      : (optarg != NULL))
 
-void restore_symbol(NSString * inpath, NSString *outpath, NSString* outputObjcSymbolPath, NSString *jsonPath, bool oc_detect_enable, bool replace_restrict);
+void restore_symbol(NSString * inpath, NSString *outpath, NSString* outputObjcSymbolPath, NSString *jsonPath, bool isScanObjcSymbols, bool isOverwriteOutputFile, bool isReplaceRestrict);
 
 void print_usage(void)
 {
@@ -58,8 +58,9 @@ void print_usage(void)
 
 int main(int argc, char * argv[]) {
 //    bool oc_detect_enable = true;
-    bool replace_restrict = false;
-    bool scanObjcSymbols = true;
+    bool isReplaceRestrict = false;
+    bool isScanObjcSymbols = true;
+    bool isOverwriteOutputFile = false;
 
     NSString *inpath = nil;
     NSString *outpath = nil;
@@ -67,8 +68,8 @@ int main(int argc, char * argv[]) {
     NSString *outputObjcSymbolPath = nil;
     
     BOOL shouldPrintVersion = NO;
-    BOOL onlyPrintHelp = NO;
-    
+    BOOL isOnlyPrintHelp = NO;
+
     int longOptionChar;
 
     struct option longopts[] = {
@@ -78,8 +79,8 @@ int main(int argc, char * argv[]) {
         { "export-objc-symbols",        required_argument, NULL, 'e' },
         { "json",                       required_argument, NULL, 'j' },
         { "output",                     required_argument, NULL, 'o' },
-//        { "scan-objc-symbols",          optional_argument, NULL, 's' },
         { "scan-objc-symbols",          required_argument, NULL, 's' },
+        { "overwrite-output-file",      required_argument, NULL, 'w' },
 
         { NULL,                      0,                 NULL, 0 },
     };
@@ -89,12 +90,11 @@ int main(int argc, char * argv[]) {
         exit(0);
     }
 
-//    while ( (longOptionChar = getopt_long(argc, argv, "e:j:o:s::hv", longopts, NULL)) != -1) {
-    while ( (longOptionChar = getopt_long(argc, argv, "e:j:o:s:hv", longopts, NULL)) != -1) {
-//        printf("longOptionChar=%c\n", longOptionChar);
+    while ( (longOptionChar = getopt_long(argc, argv, "e:j:o:s:w:hv", longopts, NULL)) != -1) {
+        printf("longOptionChar=%c, optarg=%s\n", longOptionChar, optarg);
         switch (longOptionChar) {
             case 'h':
-                onlyPrintHelp = YES;
+                isOnlyPrintHelp = YES;
                 break;
             case 'v':
                 shouldPrintVersion = YES;
@@ -111,34 +111,34 @@ int main(int argc, char * argv[]) {
                 break;
 
             case 's':
-//                // option with optional argument
-////                if (optarg == NULL) {
-//                if (OPTIONAL_ARGUMENT_IS_PRESENT) {
-//                    // Handle is present
-                    if (strcmp(optarg, "true") == 0) {
-                        scanObjcSymbols = true;
-                    } else if (strcmp(optarg, "false") == 0) {
-                        scanObjcSymbols = false;
-                    } else {
-                        printf("Invalid value %s for --scan-objc-symbols\n", optarg);
-                        onlyPrintHelp = true;
-                    }
-//                } else {
-//                    // Handle is not present
-//
-//                    // default value is true
-//                    scanObjcSymbols = true;
-//                }
+                if (strcmp(optarg, "true") == 0) {
+                    isScanObjcSymbols = true;
+                } else if (strcmp(optarg, "false") == 0) {
+                    isScanObjcSymbols = false;
+                } else {
+                    printf("Invalid value %s for --scan-objc-symbols\n", optarg);
+                    isOnlyPrintHelp = true;
+                }
+                break;
+            case 'w':
+                if (strcmp(optarg, "true") == 0) {
+                    isOverwriteOutputFile = true;
+                } else if (strcmp(optarg, "false") == 0) {
+                    isOverwriteOutputFile = false;
+                } else {
+                    printf("Invalid value %s for --overwrite-output-file\n", optarg);
+                    isOnlyPrintHelp = true;
+                }
                 break;
             case 'r':
-                replace_restrict = true;
+                isReplaceRestrict = true;
                 break;
             default:
                 break;
         }
     }
     
-    if (onlyPrintHelp) {
+    if (isOnlyPrintHelp) {
         print_usage();
         exit(0);
     }
@@ -152,7 +152,6 @@ int main(int argc, char * argv[]) {
         inpath = [NSString stringWithUTF8String:argv[optind]];
     }
 
-//    restore_symbol(inpath, outpath, outputObjcSymbolPath, jsonPath, oc_detect_enable, replace_restrict);
-    restore_symbol(inpath, outpath, outputObjcSymbolPath, jsonPath, scanObjcSymbols, replace_restrict);
-    
+//    restore_symbol(inpath, outpath, outputObjcSymbolPath, jsonPath, oc_detect_enable, isReplaceRestrict);
+    restore_symbol(inpath, outpath, outputObjcSymbolPath, jsonPath, isScanObjcSymbols, isOverwriteOutputFile, isReplaceRestrict);
 }

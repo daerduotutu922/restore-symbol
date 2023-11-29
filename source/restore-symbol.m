@@ -29,8 +29,8 @@
 #define vm_addr_round(v,r) ( (v + (r-1) ) & (-r) )
 
 
-//void restore_symbol(NSString * inpath, NSString *outpath, NSString* outputObjcSymbolPath, NSString *jsonPath, bool oc_detect_enable, bool replace_restrict){
-void restore_symbol(NSString * inpath, NSString *outpath, NSString* outputObjcSymbolPath, NSString *jsonPath, bool scanObjcSymbols, bool replace_restrict){
+//void restore_symbol(NSString * inpath, NSString *outpath, NSString* outputObjcSymbolPath, NSString *jsonPath, bool oc_detect_enable, bool isReplaceRestrict){
+void restore_symbol(NSString * inpath, NSString *outpath, NSString* outputObjcSymbolPath, NSString *jsonPath, bool isScanObjcSymbols, bool isOverwriteOutputFile, bool isReplaceRestrict){
     if (![[NSFileManager defaultManager] fileExistsAtPath:inpath]) {
         fprintf(stderr, "Error: Input file doesn't exist!\n");
         exit(1);
@@ -47,10 +47,15 @@ void restore_symbol(NSString * inpath, NSString *outpath, NSString* outputObjcSy
     }
     
     if ([[NSFileManager defaultManager] fileExistsAtPath:outpath]) {
-        fprintf(stderr, "Error: Output file has exist!\n");
-        exit(1);
+        const char* outputPath = [outpath UTF8String];
+        if (isOverwriteOutputFile) {
+            fprintf(stderr, "Note: will overwrite for existed output file %s\n", outputPath);
+        } else {
+            fprintf(stderr, "Error: existed output file %s!\n", outputPath);
+            exit(1);
+        }
     }
-    
+
     fprintf(stderr, "=========== Start =============\n");
 
     NSMutableData * outData = [[NSMutableData alloc] initWithContentsOfFile:inpath];
@@ -68,7 +73,7 @@ void restore_symbol(NSString * inpath, NSString *outpath, NSString* outputObjcSy
     collector.machOFile = machOFile;
     
 //    if (oc_detect_enable) {
-    if (scanObjcSymbols) {
+    if (isScanObjcSymbols) {
         fprintf(stderr, "Scan ObjC method in mach-o-file: %s\n", [inpath UTF8String]);
 
         CDClassDump *classDump = [[CDClassDump alloc] init];
@@ -234,7 +239,7 @@ void restore_symbol(NSString * inpath, NSString *outpath, NSString* outputObjcSy
     
     uint32 origin_dysymbol_table_locsymbol_num = machOFile.dynamicSymbolTable.dysymtab.nlocalsym;
 
-    if (replace_restrict){
+    if (isReplaceRestrict){
         CDLCSegment * restrict_seg = [machOFile segmentWithName:@"__RESTRICT"];
         
         struct segment_command *restrict_seg_cmd = (struct segment_command *)((char *)outData.mutableBytes + restrict_seg.commandOffset);
@@ -315,7 +320,8 @@ void restore_symbol(NSString * inpath, NSString *outpath, NSString* outputObjcSy
     fprintf(stderr, "Restore symbol complete\n");
 
     NSError * err = nil;
-    [outData writeToFile:outpath options:NSDataWritingWithoutOverwriting error:&err];
+//    [outData writeToFile:outpath options:NSDataWritingWithoutOverwriting error:&err];
+    [outData writeToFile:outpath options:NSDataWritingAtomic error:&err];
 
     if (!err) {
         chmod(outpath.UTF8String, 0755);
