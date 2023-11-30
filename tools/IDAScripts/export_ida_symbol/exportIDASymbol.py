@@ -269,11 +269,19 @@ print("IDA Version: %s" % idaVersion)
 idaRootFilename = get_root_filename()
 print("IDA root filename: %s" % idaRootFilename)
 
-inputFileFullPath = ida_nalt.get_input_file_path()
-# print("inputFileFullPath=%s" % inputFileFullPath)
 if not outputFolder:
-  outputFolder = os.path.dirname(inputFileFullPath)
-# print("outputFolder=%s" % outputFolder)
+  inputFileFullPath = ida_nalt.get_input_file_path()
+  print("inputFileFullPath=%s" % inputFileFullPath)
+  if inputFileFullPath.startswith("/var/containers/Bundle/Application"):
+    # inputFileFullPath=/var/containers/Bundle/Application/2BE964D4-8DF0-4858-A06D-66CA8741ACDC/WhatsApp.app/WhatsApp
+    # -> maybe IDA bug -> after debug settings, output iOS device path, but later no authority to write exported file to it
+    # so need to avoid this case, change to output to PC side (Mac) current folder
+    outputFolder = "."
+  else:
+    outputFolder = os.path.dirname(inputFileFullPath)
+  print("outputFolder=%s" % outputFolder)
+# debugInputPath = ida_nalt.dbg_get_input_path()
+# print("debugInputPath=%s" % debugInputPath)
 
 # changeLogStr = imageBaseStr
 # changeLogStr = "omitImportFunc"

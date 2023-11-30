@@ -56,6 +56,9 @@ if enableWriteback:
 isLogVerbose = False
 # isLogVerbose = True
 
+outputFolder = None
+# outputFolder = "/Users/crifan/dev/dev_src/ios_reverse/symbol/restore-symbol/crifan/restore-symbol/tools/IDAScripts/search_oc_block/output"
+
 ################################################################################
 # Util Function
 ################################################################################
@@ -115,10 +118,17 @@ outputFilename = "blockSymbolsRenamed"
 outputFullFilename = "%s_%s_%s.json" % (inputFilename, outputFilename, getCurDatetimeStr())
 # print("outputFullFilename=%s" % outputFullFilename)
 
-inputFileFullPath = ida_nalt.get_input_file_path()
-# print("inputFileFullPath=%s" % inputFileFullPath)
-outputFolder = os.path.dirname(inputFileFullPath)
-# print("outputFolder=%s" % outputFolder)
+if not outputFolder:
+  inputFileFullPath = ida_nalt.get_input_file_path()
+  print("inputFileFullPath=%s" % inputFileFullPath)
+  if inputFileFullPath.startswith("/var/containers/Bundle/Application"):
+    # inputFileFullPath=/var/containers/Bundle/Application/2BE964D4-8DF0-4858-A06D-66CA8741ACDC/WhatsApp.app/WhatsApp
+    # -> maybe IDA bug -> after debug settings, output iOS device path, but later no authority to write exported file to it
+    # so need to avoid this case, change to output to PC side (Mac) current folder
+    outputFolder = "."
+  else:
+    outputFolder = os.path.dirname(inputFileFullPath)
+  print("outputFolder=%s" % outputFolder)
 
 print("%s Processing %s" % ("="*40, "="*40))
 
@@ -424,8 +434,9 @@ if isExportToFile:
   print("  folder: %s" % outputFolder)
   print("  file: %s" % outputFullFilename)
 
+  outputFullPath = os.path.join(outputFolder, outputFullFilename)
   encodeJson = json.dumps(blockSymbolDictList, indent=1)
-  f = open(outputFullFilename, "w")
+  f = open(outputFullPath, "w")
   f.write(encodeJson)
   f.close()
   print("Export complete")

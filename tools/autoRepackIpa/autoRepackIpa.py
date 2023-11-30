@@ -174,8 +174,10 @@ if __name__ == "__main__":
   # symbolFilename_WhatsApp = "WhatsApp_IDASymbols_FunctionsNames_20231126_171758.json"
   # symbolFilename_WhatsApp = "WhatsApp_IDASymbols_FunctionsNames_20231128_213634.json"
   # symbolFilename_SharedModules = "SharedModules_IDASymbols_FunctionsNames_20231128_214111.json"
-  symbolFilename_WhatsApp = "WhatsApp_IDASymbols_FunctionsNames_20231129_223621.json"
-  symbolFilename_SharedModules = "SharedModules_IDASymbols_FunctionsNames_20231129_224249.json"
+  # symbolFilename_WhatsApp = "WhatsApp_IDASymbols_FunctionsNames_20231129_223621.json"
+  # symbolFilename_SharedModules = "SharedModules_IDASymbols_FunctionsNames_20231129_224249.json"
+  symbolFilename_WhatsApp = "WhatsApp_IDASymbols_FunctionsNames_20231130_104313.json"
+  symbolFilename_SharedModules = "SharedModules_IDASymbols_FunctionsNames_20231130_111532.json"
 
   print("args=%s" % args)
   # machoFile = args.machoFile

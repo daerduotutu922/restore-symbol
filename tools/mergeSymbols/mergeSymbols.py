@@ -486,16 +486,16 @@ if __name__ == "__main__":
   print("%s Parsing input arguments %s" % (mainDelimiter , mainDelimiter))
   print("args=%s" % args)
 
-  # for debug
-  # curFolder = "/Users/crifan/dev/dev_src/ios_reverse/symbol/restore-symbol/crifan/restore-symbol"
-  print("curFolder=%s" % curFolder)
-  args.appName="WhatsApp"
-  args.idaSymbolFile="input/WhatsApp/WhatsApp_IDASymbols_FunctionsNames_20231125_222058.json"
-  args.objcSymbolFile="input/WhatsApp/WhatsApp_objcNoDupSymbols_20231105.json"
-  # args.idaSymbolFile = os.path.join(curFolder, "tools/mergeSymbols", args.idaSymbolFile)
-  # args.objcSymbolFile = os.path.join(curFolder, "tools/mergeSymbols", args.objcSymbolFile)
-  args.idaSymbolFile = os.path.join(curFolder, args.idaSymbolFile)
-  args.objcSymbolFile = os.path.join(curFolder, args.objcSymbolFile)
+  # # for debug
+  # # curFolder = "/Users/crifan/dev/dev_src/ios_reverse/symbol/restore-symbol/crifan/restore-symbol"
+  # print("curFolder=%s" % curFolder)
+  # args.appName="WhatsApp"
+  # args.idaSymbolFile="input/WhatsApp/WhatsApp_IDASymbols_FunctionsNames_20231125_222058.json"
+  # args.objcSymbolFile="input/WhatsApp/WhatsApp_objcNoDupSymbols_20231105.json"
+  # # args.idaSymbolFile = os.path.join(curFolder, "tools/mergeSymbols", args.idaSymbolFile)
+  # # args.objcSymbolFile = os.path.join(curFolder, "tools/mergeSymbols", args.objcSymbolFile)
+  # args.idaSymbolFile = os.path.join(curFolder, args.idaSymbolFile)
+  # args.objcSymbolFile = os.path.join(curFolder, args.objcSymbolFile)
 
   appName = args.appName
   print("appName=%s" % appName)
