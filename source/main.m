@@ -13,8 +13,8 @@
 #include <stdlib.h>
 #include <mach-o/arch.h>
 
-
-#define RESTORE_SYMBOL_BASE_VERSION "1.0 (64 bit)"
+// #define RESTORE_SYMBOL_BASE_VERSION "1.0 (64 bit)"
+#define RESTORE_SYMBOL_BASE_VERSION "1.1 (64 bit)"
 
 #ifdef DEBUG
 #define RESTORE_SYMBOL_VERSION RESTORE_SYMBOL_BASE_VERSION //" (Debug version compiled " __DATE__ " " __TIME__ ")"
@@ -91,7 +91,7 @@ int main(int argc, char * argv[]) {
     }
 
     while ( (longOptionChar = getopt_long(argc, argv, "e:j:o:s:w:hv", longopts, NULL)) != -1) {
-        printf("longOptionChar=%c, optarg=%s\n", longOptionChar, optarg);
+        // printf("longOptionChar=%c, optarg=%s\n", longOptionChar, optarg);
         switch (longOptionChar) {
             case 'h':
                 isOnlyPrintHelp = YES;
