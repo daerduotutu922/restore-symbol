@@ -1,30 +1,165 @@
 # restore-symbol
 
-* Update: `20231127`
-* Forked from: https://github.com/HeiTanBc/restore-symbol
-* Changelog
-  * 20231115
-    * other updates for `exportIDASymbo.py`, `mergeSymbols.py`
-  * 20231103
-    * add `tools/IDAScripts/export_ida_symbol/exportIDASymbo.py`
-      * to export IDA symbols
-    * add `tools/mergeSymbols/mergeSymbols.py`
-      * to merge all symbols from restore-symbol restored, exported from IDA functions list, scanned from IDA block
-  * 20231027
-    * `search_oc_block/ida_search_block.py`
-      * Converted to support [IDA 7.4+](https://hex-rays.com/products/ida/support/ida74_idapython_no_bc695_porting_guide.shtml) (`SegName`->`get_segm_name`, `Qword`->`get_qword`, etc.)
-      * Converted to Python 3.x(`print xxx`->`print(xxx)`, `filter`->`list` etc.)
-      * Fixed bug: `RecursionError: maximum recursion depth exceeded while calling a Python object`
-* TODO
-  * [ ] update README add usage example for: has IDA(scan & writeback block symbol + export IDA symbol + restore-symbol) and no IDA(ony restore-symbol ObjC symbol)
-  * [ ] update `class-dump` to support new load command: `0x80000033`, `0x80000034`
+* Update: `20231130`
 
----
+Forked from [HeiTanBc/restore-symbol](https://github.com/HeiTanBc/restore-symbol), do many furture optimization, to facilicate restore symbols for iOS Mach-O file
+
+## Effect Compare
+
+* Before restore symbol
+  * ![before_restore_symbol](assets/img/before_restore_symbol.jpg)
+* After restore symbol
+  * for: `restore-symbol`=`rs`'s ObjC + block
+    * ![after_restore_symbol_whatsapp_rs](assets/img/after_restore_symbol_whatsapp_rs.jpg)
+  * for: `IDA`'s Functions + Names + block
+    * ![after_restored_symbol_whatsapp_ida](assets/img/after_restored_symbol_whatsapp_ida.jpg)
+
+## Prepare
+
+### download code
+
+```bash
+git clone --recursive https://github.com/crifan/restore-symbol.git
+```
+
+### compile to generate `restore-symbol`
+
+```bash
+cd restore-symbol
+make
+```
+
+then can:
+
+* show version
+  * `./restore-symbol --version`
+* show help
+  * `./restore-symbol --help` == `./restore-symbol`
+
+## Usage
+
+### Restore symbols
+
+#### for anyone: have `IDA Pro`
+
+* (1) scan and writeback **block** symbols to IDA
+  * run `tools/IDAScripts/search_oc_block/ida_search_block.py` in IDA
+    * default config: 
+      * `enableWriteback = True`: write back (scanned objc block symbol name) into IDA
+      * `isExportToFile = True`: meanwhile also export block symbol file (for furture use, or manual check)
+  * Example
+    * WhatsApp
+      * ![ida_writeback_block_symbol_whatsapp](assets/img/ida_writeback_block_symbol_whatsapp.jpg)
+* (2) export **IDA** symbols (`Functions` + `Names`, and above **block** symbols) to json file
+  * run `tools/IDAScripts/export_ida_symbol/exportIDASymbol.py` in IDA
+    * default config
+      * `isVerbose = False`: no verbose log
+        * change to `isVerbose = True` if you want see details
+      * `isExportToFile = True`: export final all symbols to json file
+      * `enableDemangleName = True`: for (`Functions` + `Names`) all symbol names, use demangle name if not None
+      * `outputFolder = None`: default output exported file to current folder of IDA opened Mach-O file
+        * set to your expected other folder if necessary
+  * Example
+    * WhatsApp
+      * ![ida_export_symbol_whatsapp](assets/img/ida_export_symbol_whatsapp.jpg)
+* (3) **restore** all symbols for iOS Mach-O binary file
+  * run `./restore-symbol` to restore IDA exported all symbols (IDA's Functions+Names and block)
+    ```bash
+    restore-symbol -w true -s false -j {exported_IDA_symbols.json} -o {outputFile_RestoredSymbol} {inputMachOFile}
+    ```
+  * Example
+    * WhatsApp
+      ```bash
+      ./restore-symbol -w true -s false -j tools/IDAScripts/export_ida_symbol/output/WhatsApp_IDASymbols_FunctionsNames_20231129_223621.json -o test/WhatsApp/output/WhatsApp_mergedSymbols_20231129 test/WhatsApp/input/WhatsApp
+      ```
+        * ![restore_symbol_whatsapp](assets/img/restore_symbol_whatsapp.jpg)
+
+#### for anyone: no `IDA Pro`
+
+use `restore-symol` to restore **ObjC** symbols, passing argument with `-s true`=`--scan-objc-symbols true`
+
+```bash
+restore-symbol -s true -o {outputFile_RestoredSymbol} {inputMachOFile}
+```
+
+* Note
+  * after `restore-symbol` restored ObjC symbol, there are some wrong symbol
+    * how to fix: use above (`exportIDASymbol.py` expored) **IDA** symbols
+
+### Auto repack IPA file
+
+* use `tools/autoRepackIpa/autoRepackIpa.py`
+  * to auto do all steps for your
+    * (1) call `restore-symbol` to restore symbols
+    * (2) call `codesign` to resign
+    * (3) `unzip` original ipa
+    * (4) `replace` to new resigned mach-o file
+    * (5) `zip` folder to ipa file
+  * Example
+    * WhatsApp
+      * ![auto_repack_ipa_whatsapp](assets/img/auto_repack_ipa_whatsapp.jpg)
+  * Attention
+    * before use it, you need to edit to chagne to **your** `mach-o file` and `related paths`
+
+## Changelog
+
+* 20231115
+  * other updates for `exportIDASymbo.py`, `mergeSymbols.py`
+* 20231103
+  * add `tools/IDAScripts/export_ida_symbol/exportIDASymbol.py`
+    * to export IDA symbols
+  * add `tools/mergeSymbols/mergeSymbols.py`
+    * to merge all symbols from restore-symbol restored, exported from IDA functions list, scanned from IDA block
+* 20231027
+  * `search_oc_block/ida_search_block.py`
+    * Converted to support [IDA 7.4+](https://hex-rays.com/products/ida/support/ida74_idapython_no_bc695_porting_guide.shtml) (`SegName`->`get_segm_name`, `Qword`->`get_qword`, etc.)
+    * Converted to Python 3.x(`print xxx`->`print(xxx)`, `filter`->`list` etc.)
+    * Fixed bug: `RecursionError: maximum recursion depth exceeded while calling a Python object`
+
+## restore-symbol help
+
+```bash
+➜  restore-symbol git:(master) ✗ ./restore-symbol --help
+
+restore-symbol 1.1 (64 bit)
+
+Usage: restore-symbol -o <output-file> [-j <json-symbol-file>] <mach-o-file>
+
+  where options are:
+    -o,--output <output-file>                              New mach-o-file path
+    -s,--scan-objc-symbols <true/false>                    true/false to enable/disable to disable scan objc symbols
+    -e,--export-objc-symbol <output-objc-symbol-file>      Export ObjC symbol file while restore ObjC symbol
+    --replace-restrict                                     New mach-o-file will replace the LC_SEGMENT(__RESTRICT,__restrict)
+                                                           with LC_SEGMENT(__restrict,__restrict) to close dylib inject protection
+    -j,--json <json-symbol-file>                           Json file containing extra symbol info, the key is "name","address"
+                                   like this:
+
+                                    [
+                                         {
+                                          "name": "main",
+                                          "address": "0xXXXXXX"
+                                         },
+                                         {
+                                          "name": "-[XXXX XXXXX]",
+                                          "address": "0xXXXXXX"
+                                         },
+                                         ....
+                                        ]
+    -h,--help                      Print this help info then exit
+```
+
+## TODO
+
+* [ ] add compiled `restore-symbol` to release
+* [ ] update `class-dump` to support new load command: `0x80000033`, `0x80000034`
+
+------
 
 A reverse engineering tool to restore stripped symbol table for iOS app.
 
 Example: restore symbol for Alipay
-![](picture/after_restore.jpeg)
+
+![after_restore](assets/img/after_restore.jpg)
 
 ## How to use
 
