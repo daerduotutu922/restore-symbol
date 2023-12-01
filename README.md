@@ -146,31 +146,42 @@ restore-symbol -s true -o {outputFile_RestoredSymbol} {inputMachOFile}
 ```bash
 ➜  restore-symbol git:(master) ✗ ./restore-symbol --help
 
-restore-symbol 1.1 (64 bit)
+restore-symbol 2.0 (64 bit)
 
-Usage: restore-symbol -o <output-file> [-j <json-symbol-file>] <mach-o-file>
+Usage: restore-symbol [-o <output-file>] [-j <json-symbol-file>] [-w <true/false>] [-s <true/false>] [-b <objcSymbolsOutputFile>] [-r <true/false>] [-p] <input-mach-O-file>
 
   where options are:
-    -o,--output <output-file>                              New mach-o-file path
-    -s,--scan-objc-symbols <true/false>                    true/false to enable/disable to disable scan objc symbols
-    -e,--export-objc-symbol <output-objc-symbol-file>      Export ObjC symbol file while restore ObjC symbol
-    --replace-restrict                                     New mach-o-file will replace the LC_SEGMENT(__RESTRICT,__restrict)
-                                                           with LC_SEGMENT(__restrict,__restrict) to close dylib inject protection
+    -h,--help                                              Print this help info then exit
+    -v,--version                                           Print version info then exit
+    -o,--output <output-file>                              New mach-O file path
+                                                             default: null
     -j,--json <json-symbol-file>                           Json file containing extra symbol info, the key is "name","address"
-                                   like this:
-
-                                    [
-                                         {
-                                          "name": "main",
-                                          "address": "0xXXXXXX"
-                                         },
-                                         {
-                                          "name": "-[XXXX XXXXX]",
-                                          "address": "0xXXXXXX"
-                                         },
-                                         ....
-                                        ]
-    -h,--help                      Print this help info then exit
+                                                             like this:
+                                                               [
+                                                                 {
+                                                                   "name": "main",
+                                                                   "address": "0xXXXXXX"
+                                                                 },
+                                                                 {
+                                                                   "name": "-[XXXX XXXXX]",
+                                                                   "address": "0xXXXXXX"
+                                                                 },
+                                                                 ...
+                                                               ]
+                                                             default: null
+    -w,--overwrite-output-file <true/false>                Overwrite output file if existed
+                                                             default: false
+    -s,--scan-objc-symbols <true/false>                    Scan objc symbols or not
+                                                             default: true
+    -m,--remove-duplicated-objc-symbols <true/false>       Remove duplicated objc symbols or not after scan objc symbols
+                                                             default: true
+    -b,--objc-symbols-output-file <objcSymbolsOutputFile>  Export objc symbols to file
+                                                             default: null
+    -r,--restore-symols <true/false>                       Restore symbol or not
+                                                             default: true
+    -p,--replace-restrict                                  New mach-O file will replace the LC_SEGMENT(__RESTRICT,__restrict)
+                                                             with LC_SEGMENT(__restrict,__restrict) to close dylib inject protection
+                                                             default: disabled
 ```
 
 ## TODO

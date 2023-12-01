@@ -114,6 +114,7 @@ tools/mergeSymbols/output/
 tools/mergeSymbols/debug/
 tools/IDAScripts/search_oc_block/output
 tools/IDAScripts/export_ida_symbol/output
+test/WhatsApp/output/ObjcSymbols
 
 *.xcscheme
 IDEWorkspaceChecks.plist

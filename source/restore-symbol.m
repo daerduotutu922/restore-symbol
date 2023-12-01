@@ -1,5 +1,5 @@
 //
-//  main.m
+//  restore-symbol.m
 //  restore-symbol
 //
 //  Created by EugeneYang on 16/8/16.
@@ -28,205 +28,172 @@
 
 #define vm_addr_round(v,r) ( (v + (r-1) ) & (-r) )
 
+void scanObjcSymbols(NSString * inpath, CDMachOFile * machOFile, RSSymbolCollector *collector){
+    fprintf(stderr, "Scan ObjC method in Mach-O file: %s\n", [inpath UTF8String]);
 
-//void restore_symbol(NSString * inpath, NSString *outpath, NSString* outputObjcSymbolPath, NSString *jsonPath, bool oc_detect_enable, bool isReplaceRestrict){
-void restore_symbol(NSString * inpath, NSString *outpath, NSString* outputObjcSymbolPath, NSString *jsonPath, bool isScanObjcSymbols, bool isOverwriteOutputFile, bool isReplaceRestrict){
-    if (![[NSFileManager defaultManager] fileExistsAtPath:inpath]) {
-        fprintf(stderr, "Error: Input file doesn't exist!\n");
+    CDClassDump *classDump = [[CDClassDump alloc] init];
+    CDArch targetArch;
+    if ([machOFile bestMatchForLocalArch:&targetArch] == NO) {
+        fprintf(stderr, "Error: Couldn't get local architecture!\n");
         exit(1);
     }
+
+    classDump.targetArch = targetArch;
+    [classDump processObjectiveCData];
+    [classDump registerTypes];
     
-    if (jsonPath.length != 0 && ![[NSFileManager defaultManager] fileExistsAtPath:jsonPath]) {
-        fprintf(stderr, "Error: Json file doesn't exist!\n");
+    NSError *error;
+    if (![classDump loadFile:machOFile error:&error]) {
+        fprintf(stderr, "Error: %s\n", [[error localizedFailureReason] UTF8String]);
         exit(1);
-    }
-    
-    if ([outpath length] == 0) {
-        fprintf(stderr, "Error: No output file path!\n");
-        exit(1);
-    }
-    
-    if ([[NSFileManager defaultManager] fileExistsAtPath:outpath]) {
-        const char* outputPath = [outpath UTF8String];
-        if (isOverwriteOutputFile) {
-            fprintf(stderr, "Note: will overwrite for existed output file %s\n", outputPath);
-        } else {
-            fprintf(stderr, "Error: existed output file %s!\n", outputPath);
-            exit(1);
-        }
-    }
-
-    fprintf(stderr, "=========== Start =============\n");
-
-    NSMutableData * outData = [[NSMutableData alloc] initWithContentsOfFile:inpath];
-    CDFile * ofile = [CDFile fileWithContentsOfFile:inpath searchPathState:nil];
-    
-    if ([ofile isKindOfClass:[CDFatFile class]] ) {
-        fprintf(stderr,"Restore-symbol supports armv7 and arm64 archtecture, but not support fat file. Please use lipo to thin the image file first.");
-        exit(1);
-    }
-    
-    CDMachOFile * machOFile = (CDMachOFile *)ofile;
-    const bool Is32Bit = ! machOFile.uses64BitABI;
-    
-    RSSymbolCollector *collector = [RSSymbolCollector new];
-    collector.machOFile = machOFile;
-    
-//    if (oc_detect_enable) {
-    if (isScanObjcSymbols) {
-        fprintf(stderr, "Scan ObjC method in mach-o-file: %s\n", [inpath UTF8String]);
-
-        CDClassDump *classDump = [[CDClassDump alloc] init];
-        CDArch targetArch;
-        if ([machOFile bestMatchForLocalArch:&targetArch] == NO) {
-            fprintf(stderr, "Error: Couldn't get local architecture!\n");
-            exit(1);
-        }
-
-        classDump.targetArch = targetArch;
+    } else {
         [classDump processObjectiveCData];
         [classDump registerTypes];
         
-        NSError *error;
-        if (![classDump loadFile:machOFile error:&error]) {
-            fprintf(stderr, "Error: %s\n", [[error localizedFailureReason] UTF8String]);
-            exit(1);
-        } else {
-            [classDump processObjectiveCData];
-            [classDump registerTypes];
-            
-            RSScanMethodVisitor *visitor = [[RSScanMethodVisitor alloc] initWithSymbolCollector:collector];
-            visitor.classDump = classDump;
-            [classDump recursivelyVisit:visitor];
-        }
-        
-        fprintf(stderr, "Scan ObjC method finish.\n");
-
-        NSArray<RSSymbol *> * objcSymbolArr = collector.symbols;
-        NSUInteger objCSymbolCount = objcSymbolArr.count;
-        fprintf(stderr, "Scanned %ld objc symbols\n", objCSymbolCount);
-
-        fprintf(stderr, "Detecting duplicated symbols ...\n");
-
-        NSMutableArray* omittedSymList = [NSMutableArray array];
-        //    NSDictionary<NSString *, id> *noDupSymDict;
-        NSMutableDictionary* noDupSymDict = [NSMutableDictionary dictionary];
-        for (NSUInteger symIdx = 0; symIdx < objCSymbolCount; symIdx++) {
-            RSSymbol* curSymbol = objcSymbolArr[symIdx];
-            uint64 address = curSymbol.address;
-
-            NSString* name = curSymbol.name;
-            const char* nameStr = [name UTF8String];
-            uint8_t type = curSymbol.type;
-
-    //        // for debug
-    //        if ( ([name isEqualToString: @"-[_TtC13WAHistorySync17HistorySyncDevice isSyncing]"]) && (type == 0x0E) && (address == 0x1005D206C) ) {
-    //            fprintf(stderr, "Odd symbol (check but not exist): [%ld] type=0x%02X, address=0x%llX, name=%s\n", symIdx, type, address, nameStr);
-    //        }
-
-            BOOL needAdd = false;
-
-            if (address != 0) {
-                id existSymbolDict = [noDupSymDict objectForKey: name];
-                if(existSymbolDict != nil){
-                    NSNumber *existTypeNumber = [existSymbolDict valueForKey: @"type"];
-                    char existType = [existTypeNumber charValue];
-                    if (existType != N_SECT) {
-                        needAdd = true;
-                    } else if (type == N_SECT) {
-                        // both is 0x0E -> but diff address
-                        // eg:
-                        //  type=0x0E, address=0x101449f50, name=-[_TtC13WAHistorySync17HistorySyncDevice isSyncing]
-                        //  type=0x0E, address=0x1005D206C, name=-[_TtC13WAHistorySync17HistorySyncDevice isSyncing]
-                        NSNumber *existAddressNumber = [existSymbolDict valueForKey: @"address"];
-                        uint64 existAddress = [existAddressNumber longLongValue];
-                        if (address != existAddress){
-    //                        needAdd = true;
-                            fprintf(stderr, "[%ld] Strage (same name and type, but diff address): type=0x%02X, name=%s -> current address=0x%llX vs existed: address=0x%llX\n", symIdx, type, nameStr, address, existAddress);
-                        }
-                    }
-                } else {
-                    needAdd = true;
-                }
-            }
-            
-            if(needAdd) {
-                NSNumber *addressNumber = [NSNumber numberWithUnsignedLongLong: address];
-                NSNumber *typeNumber = [NSNumber numberWithChar: type];
-                NSMutableDictionary* curAddressTypeDict = [NSMutableDictionary dictionaryWithObjectsAndKeys: addressNumber, @"address", typeNumber, @"type", nil];
-                [noDupSymDict setObject:curAddressTypeDict forKey:name];
-//                NSLog(@"Added: type=0x%02X, address=0x%llX, name=%@", [typeNumber intValue], [addressNumber longLongValue], name);
-//                fprintf(stderr, "Added [%ld] type=0x%02X, address=0x%llX, name=%s\n", symIdx, type, address, nameStr);
-            } else {
-//                fprintf(stderr, "Omit  [%ld] type=0x%02X, address=0x%llX, name=%s\n", symIdx, type, address, nameStr);
-                [omittedSymList addObject:curSymbol];
-            }
-        }
-
-        NSUInteger noDumpObjCSymCount = [[noDupSymDict allKeys] count];
-        NSUInteger omittedObjCSymCount = [omittedSymList count];
-        fprintf(stderr, "non-duplicated symbols: %ld, to remove duplicated symbols: %ld\n", noDumpObjCSymCount, omittedObjCSymCount);
-
-        fprintf(stderr, "removing duplicated symbols ...\n");
-        [collector removeSymbols: omittedSymList];
-
-        NSUInteger noDupObjCSymbolCount = [collector.symbols count];
-        fprintf(stderr, "restore non-duplicated %ld symbols\n", noDupObjCSymbolCount);
-
-    //    NSLog(@"collector.symbols to json valid: %d", [NSJSONSerialization isValidJSONObject: collector.symbols]);
-    //    NSLog(@"noDupSymDict to json valid: %d", [NSJSONSerialization isValidJSONObject: noDupSymDict]);
-
-        // convert to valid json object
-        NSMutableArray* validObjcSymJsonList = [NSMutableArray array];
-        for (NSUInteger symIdx = 0; symIdx < [collector.symbols count]; symIdx++) {
-            RSSymbol* curSymbol = collector.symbols[symIdx];
-            NSString *addressStr = [NSString stringWithFormat:@"0x%llX", [curSymbol address]];
-            NSString *typeStr = [NSString stringWithFormat:@"0x%02X", [curSymbol type]];
-            NSMutableDictionary* curJsonItemDict = [NSMutableDictionary dictionaryWithObjectsAndKeys: [curSymbol name], @"name", addressStr, @"address", typeStr, @"type", nil];
-            [validObjcSymJsonList addObject: curJsonItemDict];
-        }
-//        NSLog(@"validObjcSymJsonList to json valid: %d", [NSJSONSerialization isValidJSONObject: validObjcSymJsonList]);
-
-    //    id toJsonObj = collector.symbols;
-    //    id toJsonObj = objcJsonSymList;
-    //    id toJsonObj = noDupSymDict;
-        id toJsonObj = validObjcSymJsonList;
-        NSError* toJsonErr = nil;
-        NSData* objcSymJsonData = [NSJSONSerialization dataWithJSONObject: toJsonObj options: NSJSONWritingPrettyPrinted error: &toJsonErr];
-        NSString *objcSymJsonStr = [[NSString alloc] initWithData:objcSymJsonData encoding:NSUTF8StringEncoding];
-        fprintf(stderr, "objc symbol json string: %s\n", [objcSymJsonStr UTF8String]);
-        fprintf(stderr, "Writing objc symbol json string into file: %s\n", [outputObjcSymbolPath UTF8String]);
-        NSError* writeJsonFileErr = nil;
-        [objcSymJsonStr writeToFile:outputObjcSymbolPath atomically:YES encoding:NSUTF8StringEncoding error:&writeJsonFileErr];
-        fprintf(stderr, "Complete export objc symbol to json file: %s\n", [outputObjcSymbolPath UTF8String]);
-    }
-
-    if (jsonPath != nil && jsonPath.length != 0) {
-        fprintf(stderr, "Parse symbols in json file: %s\n", [jsonPath UTF8String]);
-        NSData * jsonData = [NSData dataWithContentsOfFile:jsonPath];
-        if (jsonData == nil) {
-            fprintf(stderr, "Can't load json data.\n");
-            exit(1);
-        }
-
-        NSArray *jsonSymbols = [RSSymbol symbolsWithJson:jsonData];
-        if (jsonSymbols == nil) {
-            fprintf(stderr,"Error: Json file cann't parse!");
-            exit(1);
-        } else {
-            fprintf(stderr, "Parsed %ld symbols from json file\n", [jsonSymbols count]);
-            [collector addSymbols:jsonSymbols];
-        }
-        fprintf(stderr, "Parse finish for symbols in json file.\n");
+        RSScanMethodVisitor *visitor = [[RSScanMethodVisitor alloc] initWithSymbolCollector:collector];
+        visitor.classDump = classDump;
+        [classDump recursivelyVisit:visitor];
     }
     
+    fprintf(stderr, "Scan ObjC method finish.\n");
+
+    NSArray<RSSymbol *> * objcSymbolArr = collector.symbols;
+    NSUInteger objCSymbolCount = objcSymbolArr.count;
+    fprintf(stderr, "Scanned %ld ObjC symbols\n", objCSymbolCount);
+}
+
+
+void removeDuplicatedObjcSymbols(RSSymbolCollector *collector){
+    fprintf(stderr, "Detecting duplicated symbols ...\n");
+
+    NSArray<RSSymbol *> * objcSymbolArr = collector.symbols;
+    NSUInteger objCSymbolCount = objcSymbolArr.count;
+
+    NSMutableArray* omittedSymList = [NSMutableArray array];
+    //    NSDictionary<NSString *, id> *noDupSymDict;
+    NSMutableDictionary* noDupSymDict = [NSMutableDictionary dictionary];
+    for (NSUInteger symIdx = 0; symIdx < objCSymbolCount; symIdx++) {
+        RSSymbol* curSymbol = objcSymbolArr[symIdx];
+        uint64 address = curSymbol.address;
+
+        NSString* name = curSymbol.name;
+        const char* nameStr = [name UTF8String];
+        uint8_t type = curSymbol.type;
+
+//        // for debug
+//        if ( ([name isEqualToString: @"-[_TtC13WAHistorySync17HistorySyncDevice isSyncing]"]) && (type == 0x0E) && (address == 0x1005D206C) ) {
+//            fprintf(stderr, "Odd symbol (check but not exist): [%ld] type=0x%02X, address=0x%llX, name=%s\n", symIdx, type, address, nameStr);
+//        }
+
+        BOOL needAdd = false;
+
+        if (address != 0) {
+            id existSymbolDict = [noDupSymDict objectForKey: name];
+            if(existSymbolDict != nil){
+                NSNumber *existTypeNumber = [existSymbolDict valueForKey: @"type"];
+                char existType = [existTypeNumber charValue];
+                if (existType != N_SECT) {
+                    needAdd = true;
+                } else if (type == N_SECT) {
+                    // both is 0x0E -> but diff address
+                    // eg:
+                    //  type=0x0E, address=0x101449f50, name=-[_TtC13WAHistorySync17HistorySyncDevice isSyncing]
+                    //  type=0x0E, address=0x1005D206C, name=-[_TtC13WAHistorySync17HistorySyncDevice isSyncing]
+                    NSNumber *existAddressNumber = [existSymbolDict valueForKey: @"address"];
+                    uint64 existAddress = [existAddressNumber longLongValue];
+                    if (address != existAddress){
+//                        needAdd = true;
+                        fprintf(stderr, "[%ld] Strage (same name and type, but diff address): type=0x%02X, name=%s -> current address=0x%llX vs existed: address=0x%llX\n", symIdx, type, nameStr, address, existAddress);
+                    }
+                }
+            } else {
+                needAdd = true;
+            }
+        }
+        
+        if(needAdd) {
+            NSNumber *addressNumber = [NSNumber numberWithUnsignedLongLong: address];
+            NSNumber *typeNumber = [NSNumber numberWithChar: type];
+            NSMutableDictionary* curAddressTypeDict = [NSMutableDictionary dictionaryWithObjectsAndKeys: addressNumber, @"address", typeNumber, @"type", nil];
+            [noDupSymDict setObject:curAddressTypeDict forKey:name];
+//                NSLog(@"Added: type=0x%02X, address=0x%llX, name=%@", [typeNumber intValue], [addressNumber longLongValue], name);
+//                fprintf(stderr, "Added [%ld] type=0x%02X, address=0x%llX, name=%s\n", symIdx, type, address, nameStr);
+        } else {
+//                fprintf(stderr, "Omit  [%ld] type=0x%02X, address=0x%llX, name=%s\n", symIdx, type, address, nameStr);
+            [omittedSymList addObject:curSymbol];
+        }
+    }
+
+    NSUInteger noDumpObjCSymCount = [[noDupSymDict allKeys] count];
+    NSUInteger omittedObjCSymCount = [omittedSymList count];
+    fprintf(stderr, "Non-duplicated symbols: %ld, to remove duplicated symbols: %ld\n", noDumpObjCSymCount, omittedObjCSymCount);
+
+    fprintf(stderr, "Removing duplicated symbols ...\n");
+    [collector removeSymbols: omittedSymList];
+
+    NSUInteger noDupObjCSymbolCount = [collector.symbols count];
+    fprintf(stderr, "After remove duplicated, remain %ld non-duplicated symbols\n", noDupObjCSymbolCount);
+}
+
+void outputObjcSymbolsToJsonFile(NSString* objcSymbolsOutputFile, RSSymbolCollector *collector){
+    // NSLog(@"collector.symbols to json valid: %d", [NSJSONSerialization isValidJSONObject: collector.symbols]);
+    // NSLog(@"noDupSymDict to json valid: %d", [NSJSONSerialization isValidJSONObject: noDupSymDict]);
+
+    // convert to valid json object
+    NSMutableArray* validObjcSymJsonList = [NSMutableArray array];
+    for (NSUInteger symIdx = 0; symIdx < [collector.symbols count]; symIdx++) {
+        RSSymbol* curSymbol = collector.symbols[symIdx];
+        NSString *addressStr = [NSString stringWithFormat:@"0x%llX", [curSymbol address]];
+        NSString *typeStr = [NSString stringWithFormat:@"0x%02X", [curSymbol type]];
+        NSMutableDictionary* curJsonItemDict = [NSMutableDictionary dictionaryWithObjectsAndKeys: [curSymbol name], @"name", addressStr, @"address", typeStr, @"type", nil];
+        [validObjcSymJsonList addObject: curJsonItemDict];
+    }
+    // NSLog(@"validObjcSymJsonList to json valid: %d", [NSJSONSerialization isValidJSONObject: validObjcSymJsonList]);
+
+    // id toJsonObj = collector.symbols;
+    // id toJsonObj = objcJsonSymList;
+    // id toJsonObj = noDupSymDict;
+    id toJsonObj = validObjcSymJsonList;
+    NSError* toJsonErr = nil;
+    NSData* objcSymJsonData = [NSJSONSerialization dataWithJSONObject: toJsonObj options: NSJSONWritingPrettyPrinted error: &toJsonErr];
+    NSString *objcSymJsonStr = [[NSString alloc] initWithData:objcSymJsonData encoding:NSUTF8StringEncoding];
+//    fprintf(stderr, "objc symbol json string: %s\n", [objcSymJsonStr UTF8String]);
+    fprintf(stderr, "Writing %ld ObjC symbols ...\n", [validObjcSymJsonList count]);
+    NSError* writeJsonFileErr = nil;
+    [objcSymJsonStr writeToFile:objcSymbolsOutputFile atomically:YES encoding:NSUTF8StringEncoding error:&writeJsonFileErr];
+    fprintf(stderr, "Complete export ObjC symbol to json file: %s\n", [objcSymbolsOutputFile UTF8String]);
+}
+
+void parseInputJsonSymbols(NSString* jsonPath, RSSymbolCollector *collector){
+    fprintf(stderr, "Parse symbols in json file: %s\n", [jsonPath UTF8String]);
+    NSData * jsonData = [NSData dataWithContentsOfFile:jsonPath];
+    if (jsonData == nil) {
+        fprintf(stderr, "Can't load json data.\n");
+        exit(1);
+    }
+
+    NSArray *jsonSymbols = [RSSymbol symbolsWithJson:jsonData];
+    if (jsonSymbols == nil) {
+        fprintf(stderr,"Error: Json file cann't parse!");
+        exit(1);
+    } else {
+        fprintf(stderr, "Parsed %ld symbols from json file\n", [jsonSymbols count]);
+        [collector addSymbols:jsonSymbols];
+    }
+    fprintf(stderr, "Parse finish for symbols in json file.\n");
+}
+
+void doRestoreSymbol(NSString * inpath, CDMachOFile * machOFile, RSSymbolCollector *collector, NSString *outpath, bool isReplaceRestrict){
+    NSMutableData * outData = [[NSMutableData alloc] initWithContentsOfFile:inpath];
+    const bool Is32Bit = ! machOFile.uses64BitABI;
+
     uint32 toRestoreSymNum = (uint32)collector.symbols.count;
     fprintf(stderr, "Restoring %d symbols\n", toRestoreSymNum);
 
     NSData *string_table_append_data = nil;
     NSData *symbol_table_append_data = nil;
     [collector generateAppendStringTable:&string_table_append_data appendSymbolTable:&symbol_table_append_data];
-    
+
     uint32 increase_symbol_num = toRestoreSymNum;
     uint32 increase_size_string_tab = (uint32)string_table_append_data.length;
     uint32 increase_size_symtab = (uint32)symbol_table_append_data.length;
@@ -279,7 +246,6 @@ void restore_symbol(NSString * inpath, NSString *outpath, NSString* outputObjcSy
         }
     }
     
-    
     {
         CDLCSymbolTable *symtab = [machOFile symbolTable];
         struct symtab_command *symtab_out = (struct symtab_command *)((char *)outData.mutableBytes + symtab.commandOffset);
@@ -330,6 +296,69 @@ void restore_symbol(NSString * inpath, NSString *outpath, NSString* outputObjcSy
         return;
     }
     fprintf(stderr, "Output file: %s\n", outpath.UTF8String);
+}
+
+void restore_symbol(NSString * inpath, NSString *outpath, NSString *jsonPath, bool isOverwriteOutputFile, bool isScanObjcSymbols, bool isRemoveDuplicatedObjcSymbols, NSString* objcSymbolsOutputFile, bool isRestoreSymbols, bool isReplaceRestrict){
+    if (![[NSFileManager defaultManager] fileExistsAtPath:inpath]) {
+        fprintf(stderr, "Error: Input file doesn't exist!\n");
+        exit(1);
+    }
+    
+    if (jsonPath.length != 0 && ![[NSFileManager defaultManager] fileExistsAtPath:jsonPath]) {
+        fprintf(stderr, "Error: Json file doesn't exist!\n");
+        exit(1);
+    }
+    
+    if(isRestoreSymbols){
+        if ([outpath length] == 0) {
+            fprintf(stderr, "Error: No output file path!\n");
+            exit(1);
+        }
+        
+        if ([[NSFileManager defaultManager] fileExistsAtPath:outpath]) {
+            const char* outputPath = [outpath UTF8String];
+            if (isOverwriteOutputFile) {
+                fprintf(stderr, "Note: will overwrite for existed output file %s\n", outputPath);
+            } else {
+                fprintf(stderr, "Error: existed output file %s!\n", outputPath);
+                exit(1);
+            }
+        }
+    }
+
+    fprintf(stderr, "=========== Start =============\n");
+
+    CDFile * ofile = [CDFile fileWithContentsOfFile:inpath searchPathState:nil];
+    
+    if ([ofile isKindOfClass:[CDFatFile class]] ) {
+        fprintf(stderr,"Restore-symbol supports armv7 and arm64 architecture, but not support fat file. Please use lipo to thin the image file first.");
+        exit(1);
+    }
+
+    CDMachOFile * machOFile = (CDMachOFile *)ofile;
+    
+    RSSymbolCollector *collector = [RSSymbolCollector new];
+    collector.machOFile = machOFile;
+    
+    if (isScanObjcSymbols) {
+        scanObjcSymbols(inpath, machOFile, collector);
+
+        if(isRemoveDuplicatedObjcSymbols){
+            removeDuplicatedObjcSymbols(collector);
+        }
+
+        if (objcSymbolsOutputFile != nil){
+            outputObjcSymbolsToJsonFile(objcSymbolsOutputFile, collector);
+        }
+    }
+
+    if (jsonPath != nil && jsonPath.length != 0) {
+        parseInputJsonSymbols(jsonPath, collector);
+    }
+
+    if(isRestoreSymbols){
+        doRestoreSymbol(inpath, machOFile, collector, outpath, isReplaceRestrict);
+    } // isRestoreSymbols
 
     fprintf(stderr, "=========== Finish ============\n");
 }

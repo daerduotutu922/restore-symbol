@@ -15,8 +15,6 @@
 
 @implementation RSSymbolCollector
 
-
-
 - (instancetype)init
 {
     self = [super init];
@@ -25,7 +23,6 @@
     }
     return self;
 }
-
 
 - (void)removeSymbol:(RSSymbol *)symbol{
     if ([_symbols containsObject:symbol]){
@@ -50,6 +47,8 @@
         }
 
         RSSymbol* curSymbol  = symbols[curIdx];
+        
+        // follow code: speed too slow, temp not use it
 
 //        if ([_symbols containsObject:curSymbol]){
 //            if (curSymbol.type & N_EXT) {
@@ -103,14 +102,12 @@
     [_symbols addObject:symbol];
 }
 
-
 - (void)addSymbols:(NSArray<RSSymbol *> *)symbols{
     if (symbols == nil)
         return ;
     self.locSymbolSize += symbols.count;
     [_symbols addObjectsFromArray:symbols];
 }
-
 
 - (void)generateAppendStringTable:(NSData **)stringTable appendSymbolTable:(NSData **)symbolTable{
     self.symbols = [self.symbols sortedArrayUsingComparator:^NSComparisonResult(RSSymbol * sym1, RSSymbol * sym2) {
@@ -130,13 +127,9 @@
     }];
     
     const bool is32Bit = ! _machOFile.uses64BitABI;
-    
     NSMutableData * symbolNames = [NSMutableData new];
-    
     NSMutableData * nlistsData = [NSMutableData dataWithLength:_symbols.count * ( is32Bit ? sizeof(struct nlist) : sizeof(struct nlist_64))];
-    
     memset(nlistsData.mutableBytes, 0, nlistsData.length);
-    
     uint32 origin_string_table_size = _machOFile.symbolTable.strsize;
 
     for (int i = 0; i < _symbols.count; i ++) {
@@ -245,6 +238,5 @@
         return 1;
     }
 }
-
 
 @end
