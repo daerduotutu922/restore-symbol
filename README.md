@@ -1,6 +1,6 @@
 # restore-symbol
 
-* Update: `20231130`
+* Update: `20231201`
 
 Forked from [HeiTanBc/restore-symbol](https://github.com/HeiTanBc/restore-symbol), do many furture optimization, to facilicate restore symbols for iOS Mach-O file
 
@@ -40,7 +40,16 @@ then can:
 
 ### Restore symbols
 
-#### for anyone: have `IDA Pro`
+* Summary
+  * for anyone: have `IDA Pro`
+    * (1) `ida_search_block.py`: scan and writeback **block** symbols to IDA
+    * (2) `exportIDASymbol.py`: export **IDA** (`Functions` (include ObjC) + `Names` + `block`) symbols to json file
+    * (3) `restore-symbol`: **restore** all symbols for iOS Mach-O binary file
+  * for anyone: no `IDA Pro`
+    * `restore-symol` : restore (only) **ObjC** symbols
+* Details:
+
+#### (1) scan and writeback **block** symbols to IDA
 
 * (1) scan and writeback **block** symbols to IDA
   * run `tools/IDAScripts/search_oc_block/ida_search_block.py` in IDA
@@ -50,7 +59,10 @@ then can:
   * Example
     * WhatsApp
       * ![ida_writeback_block_symbol_whatsapp](assets/img/ida_writeback_block_symbol_whatsapp.jpg)
-* (2) export **IDA** symbols (`Functions` + `Names`, and above **block** symbols) to json file
+
+#### (2) export **IDA** symbols (`Functions` + `Names`, and above **block** symbols) to json file
+
+* (2) export **IDA** symbols (`Functions`(inside include ObjC symbols) + `Names`, and above **block** symbols) to json file
   * run `tools/IDAScripts/export_ida_symbol/exportIDASymbol.py` in IDA
     * default config
       * `isVerbose = False`: no verbose log
@@ -62,6 +74,19 @@ then can:
   * Example
     * WhatsApp
       * ![ida_export_symbol_whatsapp](assets/img/ida_export_symbol_whatsapp.jpg)
+  * Attention
+    * makesure `IDA's image base` == `Mach-O vmaddr base` is same
+      * Example
+        * WhatsApp
+          * before: IDA image base=`0x100C00000`
+            * ![ida_before_rebase_0x100C00000](assets/img/ida_before_rebase_0x100C00000.jpg)
+          * after `Rebase program`, IDA's image base=`0x100000000`
+            * ![ida_after_rebase_0x100000000](assets/img/ida_after_rebase_0x100000000.jpg)
+          * same with (MachOView see) WhatsApp's vmaddr=`0x100000000`
+            * ![machoview_whatsapp_text_vmaddr_0x100000000](assets/img/machoview_whatsapp_text_vmaddr_0x100000000.jpg)
+
+#### (3) **restore** all symbols for iOS Mach-O binary file
+
 * (3) **restore** all symbols for iOS Mach-O binary file
   * run `./restore-symbol` to restore IDA exported all symbols (IDA's Functions+Names and block)
     ```bash
@@ -74,7 +99,7 @@ then can:
       ```
         * ![restore_symbol_whatsapp](assets/img/restore_symbol_whatsapp.jpg)
 
-#### for anyone: no `IDA Pro`
+#### `restore-symol` (only) ObjC symbols
 
 use `restore-symol` to restore **ObjC** symbols, passing argument with `-s true`=`--scan-objc-symbols true`
 
@@ -168,7 +193,7 @@ Example: restore symbol for Alipay
 - 1. Download source code and compile.
 
 ```bash
-git clone --recursive https://github.com/crifan/restore-symbol.git
+git clone --recursive https://github.com/HeiTanBc/restore-symbol
 cd restore-symbol && make
 ./restore-symbol
 ```
