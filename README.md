@@ -1,6 +1,6 @@
 # restore-symbol
 
-* Update: `20231201`
+* Update: `20231204`
 
 Forked from [HeiTanBc/restore-symbol](https://github.com/HeiTanBc/restore-symbol), do many furture optimization, to facilicate restore symbols for iOS Mach-O file
 
@@ -16,25 +16,30 @@ Forked from [HeiTanBc/restore-symbol](https://github.com/HeiTanBc/restore-symbol
 
 ## Prepare
 
-### download code
+* get `restore-symbol` executable file
+  * download from release
+  * or download code then build by yourself
+* then makesure workable
+  * show version
+    * `./restore-symbol --version`
+  * show help
+    * `./restore-symbol --help` == `./restore-symbol`
 
-```bash
-git clone --recursive https://github.com/crifan/restore-symbol.git
-```
+### Download from release
 
-### compile to generate `restore-symbol`
+download from [releases](https://github.com/crifan/restore-symbol/releases/) (then rename to `restore-symbol`)
 
-```bash
-cd restore-symbol
-make
-```
+### Compile by yourself
 
-then can:
-
-* show version
-  * `./restore-symbol --version`
-* show help
-  * `./restore-symbol --help` == `./restore-symbol`
+* download code
+  ```bash
+  git clone --recursive https://github.com/crifan/restore-symbol.git
+  ```
+* compile to generate `restore-symbol`
+  ```bash
+  cd restore-symbol
+  make
+  ```
 
 ## Usage
 
