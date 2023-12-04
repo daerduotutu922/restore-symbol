@@ -108,7 +108,7 @@ int main(int argc, char * argv[]) {
     }
 
     while ( (longOptionChar = getopt_long(argc, argv, "hvo:j:w:s:m:b:r:p", longopts, NULL)) != -1) {
-//        printf("longOptionChar=%c, optarg=%s\n", longOptionChar, optarg);
+        // printf("longOptionChar=%c, optarg=%s\n", longOptionChar, optarg);
         switch (longOptionChar) {
             case 'h':
                 isOnlyPrintHelp = YES;
