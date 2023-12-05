@@ -1,6 +1,6 @@
 # restore-symbol
 
-* Update: `20231204`
+* Update: `20231205`
 
 Forked from [HeiTanBc/restore-symbol](https://github.com/HeiTanBc/restore-symbol), do many furture optimization, to facilicate restore symbols for iOS Mach-O file
 
@@ -43,8 +43,6 @@ download from [releases](https://github.com/crifan/restore-symbol/releases/) (th
 
 ## Usage
 
-### Restore symbols
-
 * Summary
   * for anyone: have `IDA Pro`
     * (1) `ida_search_block.py`: scan and writeback **block** symbols to IDA
@@ -54,7 +52,7 @@ download from [releases](https://github.com/crifan/restore-symbol/releases/) (th
     * `restore-symol` : restore (only) **ObjC** symbols
 * Details:
 
-#### (1) scan and writeback **block** symbols to IDA
+### (1) scan and writeback **block** symbols to IDA
 
 * (1) scan and writeback **block** symbols to IDA
   * run `tools/IDAScripts/search_oc_block/ida_search_block.py` in IDA
@@ -65,7 +63,7 @@ download from [releases](https://github.com/crifan/restore-symbol/releases/) (th
     * WhatsApp
       * ![ida_writeback_block_symbol_whatsapp](assets/img/ida_writeback_block_symbol_whatsapp.jpg)
 
-#### (2) export **IDA** symbols (`Functions` + `Names`, and above **block** symbols) to json file
+### (2) export **IDA** symbols (`Functions` + `Names`, and above **block** symbols) to json file
 
 * (2) export **IDA** symbols (`Functions`(inside include ObjC symbols) + `Names`, and above **block** symbols) to json file
   * run `tools/IDAScripts/export_ida_symbol/exportIDASymbol.py` in IDA
@@ -90,7 +88,7 @@ download from [releases](https://github.com/crifan/restore-symbol/releases/) (th
           * same with (MachOView see) WhatsApp's vmaddr=`0x100000000`
             * ![machoview_whatsapp_text_vmaddr_0x100000000](assets/img/machoview_whatsapp_text_vmaddr_0x100000000.jpg)
 
-#### (3) **restore** all symbols for iOS Mach-O binary file
+### (3) **restore** all symbols for iOS Mach-O binary file
 
 * (3) **restore** all symbols for iOS Mach-O binary file
   * run `./restore-symbol` to restore IDA exported all symbols (IDA's Functions+Names and block)
@@ -104,7 +102,7 @@ download from [releases](https://github.com/crifan/restore-symbol/releases/) (th
       ```
         * ![restore_symbol_whatsapp](assets/img/restore_symbol_whatsapp.jpg)
 
-#### `restore-symol` (only) ObjC symbols
+### `restore-symol` (only) ObjC symbols
 
 use `restore-symol` to restore **ObjC** symbols, passing argument with `-s true`=`--scan-objc-symbols true`
 
@@ -116,20 +114,11 @@ restore-symbol -s true -o {outputFile_RestoredSymbol} {inputMachOFile}
   * after `restore-symbol` restored ObjC symbol, there are some wrong symbol
     * how to fix: use above (`exportIDASymbol.py` expored) **IDA** symbols
 
-### Auto repack IPA file
+## Post step
 
-* use `tools/autoRepackIpa/autoRepackIpa.py`
-  * to auto do all steps for your
-    * (1) call `restore-symbol` to restore symbols
-    * (2) call `codesign` to resign
-    * (3) `unzip` original ipa
-    * (4) `replace` to new resigned mach-o file
-    * (5) `zip` folder to ipa file
-  * Example
-    * WhatsApp
-      * ![auto_repack_ipa_whatsapp](assets/img/auto_repack_ipa_whatsapp.jpg)
-  * Attention
-    * before use it, you need to edit to chagne to **your** `mach-o file` and `related paths`
+after export IDA symbol, if you want automate whole process of repack ipa, you can use:
+
+[crifan/AutoRepackIpa: Auto repack ipa](https://github.com/crifan/AutoRepackIpa)
 
 ## Changelog
 
@@ -191,7 +180,6 @@ Usage: restore-symbol [-o <output-file>] [-j <json-symbol-file>] [-w <true/false
 
 ## TODO
 
-* [ ] add compiled `restore-symbol` to release
 * [ ] update `class-dump` to support new load command: `0x80000033`, `0x80000034`
 
 ------
