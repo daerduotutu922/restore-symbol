@@ -1,6 +1,6 @@
 # restore-symbol
 
-* Update: `20231205`
+* Update: `20231206`
 
 Forked from [HeiTanBc/restore-symbol](https://github.com/HeiTanBc/restore-symbol), do many furture optimization, to facilicate restore symbols for iOS Mach-O file
 
@@ -113,6 +113,31 @@ restore-symbol -s true -o {outputFile_RestoredSymbol} {inputMachOFile}
 * Note
   * after `restore-symbol` restored ObjC symbol, there are some wrong symbol
     * how to fix: use above (`exportIDASymbol.py` expored) **IDA** symbols
+
+## More Usage Case
+
+* Exmaple
+  * WhatsApp
+    * Only export ObjC symbols to json file + not remove duplicated ObjC symbol
+      ```bash
+      restore-symbol test/WhatsApp/input/WhatsApp -s true -r false -m false -b test/WhatsApp/output/ObjcSymbols/WhatsApp_objcSymbolsDuplicated_20231201.json
+      ```
+    * Only export ObjC symbols to json file + remove duplicated ObjC symbol
+      ```bash
+      restore-symbol test/WhatsApp/input/WhatsApp -s true -r false -m true -b test/WhatsApp/output/ObjcSymbols/WhatsApp_objcSymbolsDuplicated_20231201.json
+      ```
+    * scan and restore ObjC symbol, use default remove duplicated ObjC symbol
+      ```bash
+      restore-symbol test/WhatsApp/input/WhatsApp -s true -r true -m true -o test/WhatsApp/output/WhatsApp_restoredObjcSymbols_20231404
+      ```
+    * scan and restore ObjC symbol, use default remove duplicated ObjC symbol + overwrite output file if exsited
+      ```bash
+      restore-symbol test/WhatsApp/input/WhatsApp -s true -r true -m true -o test/WhatsApp/output/WhatsApp_restoredObjcSymbols_20231404 -w true
+      ```
+    * restore from imported json symbol file
+      ```bash
+      restore-symbol test/WhatsApp/input/WhatsApp -s false -r true -j tools/IDAScripts/export_ida_symbol/output/WhatsApp_IDASymbols_FunctionsNames_20231130_104313.json -o test/WhatsApp/output/WhatsApp_restoredIdaAllSymbols_20231404
+      ```
 
 ## Post step
 
