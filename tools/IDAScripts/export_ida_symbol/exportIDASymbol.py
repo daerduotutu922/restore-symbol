@@ -1,6 +1,6 @@
 # Function: IDA script plugin, export (Functions, Names) symbol from IDA (for Mach-O format)
 # Author: Crifan Li
-# Update: 20231129
+# Update: 20231210
 
 # import idc
 # import sys
@@ -89,14 +89,18 @@ def saveJsonToFile(fullFilename, jsonValue, indent=2, fileEncoding="utf-8"):
 
 #-------------------- IDA Utils --------------------
 
-# get IDA info
-def getIdaInfo():
+def ida_getInfo():
+  """
+  get IDA info
+  """
   info = idaapi.get_inf_structure()
-  print("info=%s" % info)
+  # print("info=%s" % info)
   return info
 
-# print IDA info
-def printIdaInfo(info):
+def id_printInfo(info):
+  """
+  print IDA info
+  """
   version = info.version
   print("version=%s" % version)
   is64Bit = info.is_64bit()
@@ -108,8 +112,9 @@ def printIdaInfo(info):
   baseAddr = info.baseaddr
   print("baseAddr=0x%X" % baseAddr)
 
-# print all imports lib and functions inside lib
-def printAllImports():
+def ida_printAllImports():
+  """
+  print all imports lib and functions inside lib"""
   nimps = ida_nalt.get_import_module_qty()
   print("Found %d import(s)..." % nimps)
   for i in range(nimps):
@@ -130,9 +135,11 @@ def printAllImports():
         return True
     ida_nalt.enum_import_names(i, imp_cb)
 
-# print segment info
-# Note: is IDA segment == section
-def printSegment(curSeg):
+def ida_printSegment(curSeg):
+  """
+  print segment info
+    Note: in IDA, segment == section
+  """
   segName = curSeg.name
   # print("type(segName)=%s" % type(segName))
   segSelector = curSeg.sel
@@ -140,23 +147,27 @@ def printSegment(curSeg):
   segEndAddr = curSeg.end_ea
   print("Segment: [0x%X-0x%X] name=%s, selector=%s : seg=%s" % (segStartAddr, segEndAddr, segName, segSelector, curSeg))
 
-# get segment list
-def getSegmentList():
+def ida_getSegmentList():
+  """
+  get segment list
+  """
   segList = []
   segNum = ida_segment.get_segm_qty()
   for segIdx in range(segNum):
     curSeg = ida_segment.getnseg(segIdx)
     # print("curSeg=%s" % curSeg)
     segList.append(curSeg)
-    # printSegment(curSeg)
+    # ida_printSegment(curSeg)
   return segList
 
-# test get segment info
-def testGetSegment():
+def ida_testGetSegment():
+  """
+  test get segment info
+  """
   # textSeg = ida_segment.get_segm_by_name("__TEXT")
   # dataSeg = ida_segment.get_segm_by_name("__DATA")
 
-  # getSegmentList()
+  # ida_getSegmentList()
 
   # NAME___TEXT = "21"
   # NAME___TEXT = 21
@@ -216,19 +227,19 @@ def testGetSegment():
   NAME___text = "__text"
   textSeg = ida_segment.get_segm_by_name(NAME___text)
   print("textSeg: %s -> %s" % (NAME___text, textSeg))
-  printSegment(textSeg)
+  ida_printSegment(textSeg)
 
   # __TEXT,__objc_methname
   NAME___objc_methname = "__objc_methname"
   objcMethNameSeg = ida_segment.get_segm_by_name(NAME___objc_methname)
   print("objcMethNameSeg: %s -> %s" % (NAME___objc_methname, objcMethNameSeg))
-  printSegment(objcMethNameSeg)
+  ida_printSegment(objcMethNameSeg)
 
   # __DATA,__got
   NAME___got = "__got"
   gotSeg = ida_segment.get_segm_by_name(NAME___got)
   print("gotSeg: %s -> %s" % (NAME___got, gotSeg))
-  printSegment(gotSeg)
+  ida_printSegment(gotSeg)
 
   # __DATA,__data
   # NAME___DATA = "22"
@@ -236,18 +247,22 @@ def testGetSegment():
   NAME___DATA = "__data"
   dataSeg = ida_segment.get_segm_by_name(NAME___DATA)
   print("dataSeg: %s -> %s" % (NAME___DATA, dataSeg))
-  printSegment(dataSeg)
+  ida_printSegment(dataSeg)
 
   # exist two one: __TEXT,__const / __DATA,__const
   NAME___const = "__const"
   constSeg = ida_segment.get_segm_by_name(NAME___const)
   print("constSeg: %s -> %s" % (NAME___const, constSeg))
-  printSegment(constSeg)
+  ida_printSegment(constSeg)
 
-# use IDA to get demangled name for original symbol name
-def getDemangledName(origSymbolName):
+def ida_getDemangledName(origSymbolName):
+  """
+  use IDA to get demangled name for original symbol name
+  """
   retName = origSymbolName
-  demangledName = idc.demangle_name(origSymbolName, get_inf_attr(INF_SHORT_DN))
+  # demangledName = idc.demangle_name(origSymbolName, idc.get_inf_attr(idc.INF_SHORT_DN))
+  # https://hex-rays.com/products/ida/support/ida74_idapython_no_bc695_porting_guide.shtml
+  demangledName = idc.demangle_name(origSymbolName, idc.get_inf_attr(idc.INF_SHORT_DEMNAMES))
   if demangledName:
     retName = demangledName
   return retName
@@ -298,7 +313,7 @@ print("outputFullFilename=%s" % outputFullFilename)
 lastDataSegmentSectionName = "__common"
 commonSeg = ida_segment.get_segm_by_name(lastDataSegmentSectionName)
 print("__common segment: %s -> %s" % (lastDataSegmentSectionName, commonSeg))
-printSegment(commonSeg)
+ida_printSegment(commonSeg)
 lastValidEndAddr = commonSeg.end_ea
 print("End valid Functions Symbol address: 0x%X" % lastValidEndAddr)
 
@@ -334,7 +349,7 @@ for curFunc in functionAddrList:
   curFuncAddrStr = "0x%X" % curFunc
   curFuncName = idc.get_func_name(curFunc)
   if enableDemangleName:
-    curFuncName = getDemangledName(curFuncName)
+    curFuncName = ida_getDemangledName(curFuncName)
   # print("curFuncName=%s" % curFuncName)
 
   curFuncAttr_end = idc.get_func_attr(curFunc, attr=FUNCATTR_END)
@@ -492,7 +507,7 @@ for (nameAddr, nameName) in nameTupleIterator:
   totalNamesCount += 1
   if nameName and (nameAddr != None):
     if enableDemangleName:
-      nameName = getDemangledName(nameName)
+      nameName = ida_getDemangledName(nameName)
 
     isDupNameInFunc = nameName in funcSymDict_nameKey.keys()
     isDupAddrInFunc = nameAddr in funcSymDict_addressKey.keys()
