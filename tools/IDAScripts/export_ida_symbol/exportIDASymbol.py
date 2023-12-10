@@ -13,6 +13,7 @@
 
 import idautils
 import idc
+import idaapi
 # from idaapi import PluginForm
 import ida_nalt
 import ida_segment
@@ -47,6 +48,14 @@ outputFolder = None
 ################################################################################
 # Util Function
 ################################################################################
+
+def logMain(mainStr):
+  mainDelimiter = "="*40
+  print("%s %s %s" % (mainDelimiter, mainStr, mainDelimiter))
+
+def logSub(subStr):
+  subDelimiter = "-"*30
+  print("%s %s %s" % (subDelimiter, subStr, subDelimiter))
 
 def datetimeToStr(inputDatetime, format="%Y%m%d_%H%M%S"):
     """Convert datetime to string
@@ -267,12 +276,40 @@ def ida_getDemangledName(origSymbolName):
     retName = demangledName
   return retName
 
+def ida_getCurrentFolder():
+  """
+  get current folder for IDA current opened binary file
+    Example:
+      -> /Users/crifan/dev/dev_root/iosReverse/WhatsApp/ipa/Payload/WhatsApp.app
+      -> /Users/crifan/dev/dev_root/iosReverse/WhatsApp/ipa/Payload/WhatsApp.app/Frameworks/SharedModules.framework
+  """
+  curFolder = None
+  inputFileFullPath = ida_nalt.get_input_file_path()
+  # print("inputFileFullPath=%s" % inputFileFullPath)
+  if inputFileFullPath.startswith("/var/containers/Bundle/Application"):
+    # inputFileFullPath=/var/containers/Bundle/Application/2BE964D4-8DF0-4858-A06D-66CA8741ACDC/WhatsApp.app/WhatsApp
+    # -> maybe IDA bug -> after debug settings, output iOS device path, but later no authority to write exported file to it
+    # so need to avoid this case, change to output to PC side (Mac) current folder
+    curFolder = "."
+  else:
+    curFolder = os.path.dirname(inputFileFullPath)
+  # print("curFolder=%s" % curFolder)
+
+  # debugInputPath = ida_nalt.dbg_get_input_path()
+  # print("debugInputPath=%s" % debugInputPath)
+
+  curFolder = os.path.abspath(curFolder)
+  # print("curFolder=%s" % curFolder)
+  # here work:
+  # . -> /Users/crifan/dev/dev_root/iosReverse/WhatsApp/ipa/Payload/WhatsApp.app
+  return curFolder
+
 
 ################################################################################
 # Main
 ################################################################################
 
-print("%s Prepare %s" % ("="*40, "="*40))
+logMain("Prepare")
 
 imageBase = idaapi.get_imagebase()
 # imageBaseStr = "ImageBase0x%X" % imageBase
@@ -281,22 +318,12 @@ print("Image Base: 0x%X = %d" % (imageBase, imageBase))
 idaVersion = idaapi.IDA_SDK_VERSION
 print("IDA Version: %s" % idaVersion)
 
-idaRootFilename = get_root_filename()
+idaRootFilename = ida_nalt.get_root_filename()
 print("IDA root filename: %s" % idaRootFilename)
 
 if not outputFolder:
-  inputFileFullPath = ida_nalt.get_input_file_path()
-  print("inputFileFullPath=%s" % inputFileFullPath)
-  if inputFileFullPath.startswith("/var/containers/Bundle/Application"):
-    # inputFileFullPath=/var/containers/Bundle/Application/2BE964D4-8DF0-4858-A06D-66CA8741ACDC/WhatsApp.app/WhatsApp
-    # -> maybe IDA bug -> after debug settings, output iOS device path, but later no authority to write exported file to it
-    # so need to avoid this case, change to output to PC side (Mac) current folder
-    outputFolder = "."
-  else:
-    outputFolder = os.path.dirname(inputFileFullPath)
+  outputFolder = ida_getCurrentFolder()
   print("outputFolder=%s" % outputFolder)
-# debugInputPath = ida_nalt.dbg_get_input_path()
-# print("debugInputPath=%s" % debugInputPath)
 
 # changeLogStr = imageBaseStr
 # changeLogStr = "omitImportFunc"
@@ -322,9 +349,9 @@ functionsSymbolDictList = []
 functionIterator = idautils.Functions()
 # print("type(functionList)=%s" % type(functionList))
 
-print("%s Exporting IDA Symbols %s" % ("="*40, "="*40))
+logMain("Exporting IDA Symbols")
 
-print("%s Functions Symbols %s" % ("-"*30, "-"*30))
+logSub("Functions Symbols")
 
 functionAddrList = []
 for curFuncAddr in functionIterator:
@@ -352,7 +379,7 @@ for curFunc in functionAddrList:
     curFuncName = ida_getDemangledName(curFuncName)
   # print("curFuncName=%s" % curFuncName)
 
-  curFuncAttr_end = idc.get_func_attr(curFunc, attr=FUNCATTR_END)
+  curFuncAttr_end = idc.get_func_attr(curFunc, attr=idc.FUNCATTR_END)
 
   isValid = not (curFuncAttr_end > lastValidEndAddr)
 
@@ -366,7 +393,7 @@ for curFunc in functionAddrList:
       if (curNum % eliteLogPerNum == 0):
        isLogCurrent = True
 
-    curFuncAttr_start = idc.get_func_attr(curFunc, attr=FUNCATTR_START)
+    curFuncAttr_start = idc.get_func_attr(curFunc, attr=idc.FUNCATTR_START)
     curFuncSize = curFuncAttr_end - curFuncAttr_start
     curFuncSizeStr = "0x%X" % curFuncSize
 
@@ -374,7 +401,7 @@ for curFunc in functionAddrList:
     curFuncFlagsStr = "0x%X" % curFuncAttr_flags
 
     # curFuncComments = idc.get_func_cmt(curFunc, repeatable=0)
-    # curFuncAttr_owner = idc.get_func_attr(curFunc, attr=FUNCATTR_OWNER)
+    # curFuncAttr_owner = idc.get_func_attr(curFunc, attr=idc.FUNCATTR_OWNER)
 
     # # for debug
     # if curFuncName.startswith("__imp"):
@@ -409,7 +436,7 @@ for curFunc in functionAddrList:
 validFunctionsSymbolCount = len(functionsSymbolDictList)
 print("validFunctionsSymbolCount=%s" % validFunctionsSymbolCount)
 
-print("%s Names Symbols %s" % ("-"*30, "-"*30))
+logSub("Names Symbols")
 
 # nameTupleList = []
 # nameNameList = []
@@ -535,13 +562,13 @@ for (nameAddr, nameName) in nameTupleIterator:
 namesSymbolCount = len(namesSymbolDictList)
 print("namesSymbolCount=%s" % namesSymbolCount)
 
-print("%s Merging Symbols %s" % ("-"*30, "-"*30))
+logSub("Merging Symbols")
 
 idaSymbolDictList = functionsSymbolDictList + namesSymbolDictList
 totalIdaSymbolCount = len(idaSymbolDictList)
 print("totalIdaSymbolCount=%s" % totalIdaSymbolCount)
 
-print("%s Summary Info %s" % ("="*40, "="*40))
+logMain("Summary Info")
 
 print("Total IDA symbols count: %d" % totalIdaSymbolCount)
 print("  Functions symbol count: %d" % validFunctionsSymbolCount)
