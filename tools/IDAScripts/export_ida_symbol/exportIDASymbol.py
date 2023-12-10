@@ -106,7 +106,7 @@ def ida_getInfo():
   # print("info=%s" % info)
   return info
 
-def id_printInfo(info):
+def ida_printInfo(info):
   """
   print IDA info
   """
