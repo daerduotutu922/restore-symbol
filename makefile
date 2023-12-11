@@ -1,4 +1,6 @@
 
+prefix=/usr/local/bin
+
 .PHONY:restore-symbol
 
 TMP_FILE := libMachObjC.a restore-symbol.dSYM/ build/ class-dump/build/
@@ -10,7 +12,12 @@ restore-symbol:
 	xcodebuild -project "restore-symbol.xcodeproj" -target "restore-symbol" -configuration "Release" CONFIGURATION_BUILD_DIR="$(shell pwd)" -jobs 4 build
 	rm -rf $(TMP_FILE)
 	
-
 clean:
 	rm -rf restore-symbol $(TMP_FILE)
 
+# install: restore-symbol
+install:
+	cp restore-symbol $(prefix)
+
+uninstall:
+	rm -rf $(prefix)/restore-symbol
