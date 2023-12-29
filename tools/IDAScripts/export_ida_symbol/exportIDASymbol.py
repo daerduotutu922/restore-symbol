@@ -1,6 +1,6 @@
 # Function: IDA script plugin, export (Functions, Names) symbol from IDA (for Mach-O format)
 # Author: Crifan Li
-# Update: 20231210
+# Update: 20231229
 
 # import idc
 # import sys
@@ -21,7 +21,7 @@ import operator
 import csv
 import sys
 import json
-
+import re
 import os
 from datetime import datetime,timedelta
 from datetime import time  as datetimeTime
@@ -42,8 +42,19 @@ isExportToFile = True
 enableDemangleName = True
 # enableDemangleName = False
 
-outputFolder = None
-# outputFolder = "/Users/crifan/dev/dev_src/ios_reverse/symbol/restore-symbol/crifan/restore-symbol/tools/IDAScripts/export_ida_symbol/output"
+if isExportToFile:
+  # outputFolder = None
+  outputFolder = "/Users/crifan/dev/dev_root/crifan/github/restore-symbol/tools/IDAScripts/export_ida_symbol/output"
+
+################################################################################
+# Document
+################################################################################
+
+# IDA Python API:
+#   https://www.hex-rays.com/products/ida/support/idapython_docs/index.html
+#
+#   idc
+#     https://hex-rays.com//products/ida/support/idapython_docs/idc.html
 
 ################################################################################
 # Util Function
@@ -95,6 +106,34 @@ def saveJsonToFile(fullFilename, jsonValue, indent=2, fileEncoding="utf-8"):
     with codecs.open(fullFilename, 'w', encoding=fileEncoding) as jsonFp:
         json.dump(jsonValue, jsonFp, indent=indent, ensure_ascii=False)
         # logging.debug("Complete save json %s", fullFilename)
+
+def isObjcFunctionName(funcName):
+  """
+  check is ObjC function name or not
+  eg:
+    "+[WAAvatarStringsActions editAvatar]" -> True
+    "-[ParentGroupInfoViewController initWithParentGroupChatSession:userContext:recentlyLinkedGroupJIDs:]" -> True
+    "-[OKEvolveSegmentationVC proCard]_116" -> True
+    "-[WAAvatarStickerUpSellSupplementaryView .cxx_destruct]" -> True
+    "sub_10004C6D8" -> False
+    "protocol witness for RawRepresentable.init(rawValue:) in conformance UIFont.FontWeight" -> True
+  """
+  isMatchObjcFuncName = re.match("^[\-\+]\[\w+ [\w\.\:]+\]\w*$", funcName)
+  isObjcFuncName = bool(isMatchObjcFuncName)
+  # print("funcName=%s -> isObjcFuncName=%s" % (funcName, isObjcFuncName))
+  return isObjcFuncName
+
+# testFuncNameList = [
+#   "+[WAAvatarStringsActions editAvatar]",
+#   "-[ParentGroupInfoViewController initWithParentGroupChatSession:userContext:recentlyLinkedGroupJIDs:]",
+#   "-[OKEvolveSegmentationVC proCard]_116",
+#   "-[WAAvatarStickerUpSellSupplementaryView .cxx_destruct]",
+#   "sub_10004C6D8",
+#   "protocol witness for RawRepresentable.init(rawValue:) in conformance UIFont.FontWeight",
+# ]
+
+# for eachFuncName in testFuncNameList:
+#   isObjcFunctionName(eachFuncName)
 
 #-------------------- IDA Utils --------------------
 
@@ -274,6 +313,16 @@ def ida_getDemangledName(origSymbolName):
   demangledName = idc.demangle_name(origSymbolName, idc.get_inf_attr(idc.INF_SHORT_DEMNAMES))
   if demangledName:
     retName = demangledName
+
+  # do extra post process:
+  # remove/replace invalid char for non-objc function name
+  isNotObjcFuncName = not isObjcFunctionName(retName)
+  # print("isNotObjcFuncName=%s" % isNotObjcFuncName)
+  if isNotObjcFuncName:
+    retName = retName.replace("?", "")
+    retName = retName.replace(" ", "_")
+    retName = retName.replace("*", "_")
+  # print("origSymbolName=%s -> retName=%s" % (origSymbolName, retName))
   return retName
 
 def ida_getCurrentFolder():
@@ -321,9 +370,10 @@ print("IDA Version: %s" % idaVersion)
 idaRootFilename = ida_nalt.get_root_filename()
 print("IDA root filename: %s" % idaRootFilename)
 
-if not outputFolder:
-  outputFolder = ida_getCurrentFolder()
-  print("outputFolder=%s" % outputFolder)
+if isExportToFile:
+  if not outputFolder:
+    outputFolder = ida_getCurrentFolder()
+    print("outputFolder=%s" % outputFolder)
 
 # changeLogStr = imageBaseStr
 # changeLogStr = "omitImportFunc"
@@ -346,16 +396,21 @@ print("End valid Functions Symbol address: 0x%X" % lastValidEndAddr)
 
 functionsSymbolDictList = []
 
-functionIterator = idautils.Functions()
-# print("type(functionList)=%s" % type(functionList))
-
 logMain("Exporting IDA Symbols")
 
 logSub("Functions Symbols")
 
+# normal code:
 functionAddrList = []
+functionIterator = idautils.Functions()
+# print("type(functionList)=%s" % type(functionList))
 for curFuncAddr in functionIterator:
   functionAddrList.append(curFuncAddr)
+
+# # for debug: demangled name
+# functionAddrList = [0x1007288A4, 0x10002E9FC, 0x103A9D3F0, 0x1007F5A38, 0x1007AB0C8] # WhatsApp
+# # functionAddrList = [0x1007288A4, 0x10002E9FC, 0x1007F5A38, 0x1007AB0C8] # WhatsApp
+
 totalFunctionsCount = len(functionAddrList)
 print("totalFunctionsCount=%s" % totalFunctionsCount)
 
@@ -375,9 +430,19 @@ for curFunc in functionAddrList:
   # curFuncAddrStr = hex(curFunc)
   curFuncAddrStr = "0x%X" % curFunc
   curFuncName = idc.get_func_name(curFunc)
+
+  # # for debug
+  # logSub("[%d] %s" % (curNum, curFuncAddrStr))
+  # if not curFuncName:
+  #   curFuncName = idc.get_name(curFunc)
+  #   print("curFuncName=%s" % curFuncName)
+
   if enableDemangleName:
     curFuncName = ida_getDemangledName(curFuncName)
-  # print("curFuncName=%s" % curFuncName)
+  # print("curFunc=0x%X -> curFuncName=%s" % (curFunc, curFuncName))
+
+  # # for debug
+  # continue
 
   curFuncAttr_end = idc.get_func_attr(curFunc, attr=idc.FUNCATTR_END)
 
