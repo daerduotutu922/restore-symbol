@@ -33,6 +33,7 @@ import os
 from datetime import datetime,timedelta
 from datetime import time  as datetimeTime
 # import time
+import ida_ida
 
 ################################################################################
 # Config & Settings & Const
@@ -104,7 +105,7 @@ print("idaVersion=%s" % idaVersion)
 inputFilename = get_root_filename()
 # print("inputFilename=%s" % inputFilename)
 
-IS32BIT = not idaapi.get_inf_structure().is_64bit()
+IS32BIT = ida_ida.inf_is_32bit_exactly()
 
 IS_MAC = 'X86_64' in idaapi.get_file_type_name()
 
