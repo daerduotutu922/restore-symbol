@@ -136,6 +136,8 @@ def isObjcFunctionName(funcName):
 #   isObjcFunctionName(eachFuncName)
 
 #-------------------- IDA Utils --------------------
+# Note: more IDA util functions, please refer: 
+#   https://github.com/crifan/crifanLibPython/blob/master/python3/crifanLib/thirdParty/crifanIDA.py
 
 def ida_getInfo():
   """
