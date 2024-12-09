@@ -43,8 +43,8 @@ enableDemangleName = True
 # enableDemangleName = False
 
 if isExportToFile:
-  # outputFolder = None
-  outputFolder = "/Users/crifan/dev/dev_root/crifan/github/restore-symbol/tools/IDAScripts/export_ida_symbol/output"
+  outputFolder = None
+  # outputFolder = "/Users/crifan/dev/dev_root/crifan/github/restore-symbol/tools/IDAScripts/export_ida_symbol/output"
 
 ################################################################################
 # Document
