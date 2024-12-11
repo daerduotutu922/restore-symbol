@@ -1,6 +1,6 @@
 # Function: IDA script plugin, export (Functions, Names) symbol from IDA (for Mach-O format)
 # Author: Crifan Li
-# Update: 20231229
+# Update: 20241211
 
 # import idc
 # import sys
@@ -34,17 +34,21 @@ import codecs
 
 isVerbose = False
 # isVerbose = True
+print("isVerbose=%s" % isVerbose)
 
 isExportToFile = True
 # isExportToFile = False
+print("isExportToFile=%s" % isExportToFile)
 
 # enable demangle name or not
 enableDemangleName = True
 # enableDemangleName = False
+print("enableDemangleName=%s" % enableDemangleName)
 
 if isExportToFile:
-  outputFolder = None
-  # outputFolder = "/Users/crifan/dev/dev_root/crifan/github/restore-symbol/tools/IDAScripts/export_ida_symbol/output"
+  # outputFolder = None
+  outputFolder = "/Users/crifan/dev/dev_root/crifan/github/restore-symbol/tools/IDAScripts/export_ida_symbol/output"
+  print("outputFolder=%s" % outputFolder)
 
 ################################################################################
 # Document

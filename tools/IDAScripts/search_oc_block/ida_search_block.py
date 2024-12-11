@@ -1,6 +1,6 @@
 # Function: IDA script plugin, search iOS ObjC block symbols, then export and writeback into origin Mach-O file
 # Author: Crifan Li
-# Update: 20241209
+# Update: 20241211
 # Note: 
 #   forked from https://github.com/HeiTanBc/restore-symbol/blob/master/search_oc_block/ida_search_block.py
 # History
@@ -46,6 +46,7 @@ import ida_ida
 # is exmport scanned symbol to json file or not
 isExportToFile = True
 # isExportToFile = False
+print("isExportToFile=%s" % isExportToFile)
 
 # enable write back (scanned objc block symbol name) into IDA or not
 enableWriteback = True
@@ -62,8 +63,9 @@ isLogVerbose = False
 # isLogVerbose = True
 
 if isExportToFile:
-    outputFolder = None
-    # outputFolder = "/Users/crifan/dev/dev_root/crifan/github/restore-symbol/tools/IDAScripts/search_oc_block/output"
+  # outputFolder = None
+  outputFolder = "/Users/crifan/dev/dev_root/crifan/github/restore-symbol/tools/IDAScripts/search_oc_block/output"
+  print("outputFolder=%s" % outputFolder)
 
 ################################################################################
 # Util Function
