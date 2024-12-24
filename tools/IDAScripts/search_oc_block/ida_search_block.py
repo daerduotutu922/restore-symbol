@@ -63,8 +63,8 @@ isLogVerbose = False
 # isLogVerbose = True
 
 if isExportToFile:
-  # outputFolder = None
-  outputFolder = "/Users/crifan/dev/dev_root/crifan/github/restore-symbol/tools/IDAScripts/search_oc_block/output"
+  outputFolder = None
+  # outputFolder = "/Users/crifan/dev/dev_root/crifan/github/restore-symbol/tools/IDAScripts/search_oc_block/output"
   print("outputFolder=%s" % outputFolder)
 
 ################################################################################

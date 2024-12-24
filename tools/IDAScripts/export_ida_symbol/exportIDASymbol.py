@@ -46,8 +46,8 @@ enableDemangleName = True
 print("enableDemangleName=%s" % enableDemangleName)
 
 if isExportToFile:
-  # outputFolder = None
-  outputFolder = "/Users/crifan/dev/dev_root/crifan/github/restore-symbol/tools/IDAScripts/export_ida_symbol/output"
+  outputFolder = None
+  # outputFolder = "/Users/crifan/dev/dev_root/crifan/github/restore-symbol/tools/IDAScripts/export_ida_symbol/output"
   print("outputFolder=%s" % outputFolder)
 
 ################################################################################
