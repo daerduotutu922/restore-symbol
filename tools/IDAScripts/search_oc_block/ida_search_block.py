@@ -1,5 +1,9 @@
-# -*- coding: utf-8 -*-
-
+# Function: IDA script plugin, search iOS ObjC block symbols, then export and writeback into origin Mach-O file
+# Author: Crifan Li
+# Update: 20241211
+# Note: 
+#   forked from https://github.com/HeiTanBc/restore-symbol/blob/master/search_oc_block/ida_search_block.py
+# History
 """
 Changelog:
 
@@ -17,12 +21,12 @@ Changelog:
 2. convert to Python 3.x
 3. fix bug: "RecursionError: maximum recursion depth exceeded while calling a Python object"
 4. output filename with app and datetime
-
 """
 
 import idautils
 import idc
-from idaapi import PluginForm
+import idaapi
+# from idaapi import PluginForm
 import ida_nalt
 # import operator
 # import csv
@@ -33,6 +37,7 @@ import os
 from datetime import datetime,timedelta
 from datetime import time  as datetimeTime
 # import time
+import ida_ida
 
 ################################################################################
 # Config & Settings & Const
@@ -41,6 +46,7 @@ from datetime import time  as datetimeTime
 # is exmport scanned symbol to json file or not
 isExportToFile = True
 # isExportToFile = False
+print("isExportToFile=%s" % isExportToFile)
 
 # enable write back (scanned objc block symbol name) into IDA or not
 enableWriteback = True
@@ -56,12 +62,22 @@ if enableWriteback:
 isLogVerbose = False
 # isLogVerbose = True
 
-outputFolder = None
-# outputFolder = "/Users/crifan/dev/dev_src/ios_reverse/symbol/restore-symbol/crifan/restore-symbol/tools/IDAScripts/search_oc_block/output"
+if isExportToFile:
+  outputFolder = None
+  # outputFolder = "/Users/crifan/dev/dev_root/crifan/github/restore-symbol/tools/IDAScripts/search_oc_block/output"
+  print("outputFolder=%s" % outputFolder)
 
 ################################################################################
 # Util Function
 ################################################################################
+
+def logMain(mainStr):
+  mainDelimiter = "="*40
+  print("%s %s %s" % (mainDelimiter, mainStr, mainDelimiter))
+
+def logSub(subStr):
+  subDelimiter = "-"*30
+  print("%s %s %s" % (subDelimiter, subStr, subDelimiter))
 
 def datetimeToStr(inputDatetime, format="%Y%m%d_%H%M%S"):
     """Convert datetime to string
@@ -94,29 +110,80 @@ def getCurDatetimeStr(outputFormat="%Y%m%d_%H%M%S"):
     curDatetimeStr = datetimeToStr(curDatetime, format=outputFormat)
     return curDatetimeStr
 
+#-------------------- IDA Utils --------------------
+# Note: more IDA util functions, please refer: 
+#   https://github.com/crifan/crifanLibPython/blob/master/python3/crifanLib/thirdParty/crifanIDA.py
+
+def ida_getCurrentFolder():
+  """
+  get current folder for IDA current opened binary file
+    Example:
+      -> /Users/crifan/dev/dev_root/iosReverse/WhatsApp/ipa/Payload/WhatsApp.app
+      -> /Users/crifan/dev/dev_root/iosReverse/WhatsApp/ipa/Payload/WhatsApp.app/Frameworks/SharedModules.framework
+  """
+  curFolder = None
+  inputFileFullPath = ida_nalt.get_input_file_path()
+  # print("inputFileFullPath=%s" % inputFileFullPath)
+  if inputFileFullPath.startswith("/var/containers/Bundle/Application"):
+    # inputFileFullPath=/var/containers/Bundle/Application/2BE964D4-8DF0-4858-A06D-66CA8741ACDC/WhatsApp.app/WhatsApp
+    # -> maybe IDA bug -> after debug settings, output iOS device path, but later no authority to write exported file to it
+    # so need to avoid this case, change to output to PC side (Mac) current folder
+    curFolder = "."
+  else:
+    curFolder = os.path.dirname(inputFileFullPath)
+  # print("curFolder=%s" % curFolder)
+
+  # debugInputPath = ida_nalt.dbg_get_input_path()
+  # print("debugInputPath=%s" % debugInputPath)
+
+  curFolder = os.path.abspath(curFolder)
+  # print("curFolder=%s" % curFolder)
+  # here work:
+  # . -> /Users/crifan/dev/dev_root/iosReverse/WhatsApp/ipa/Payload/WhatsApp.app
+  return curFolder
+
 ################################################################################
 # Main
 ################################################################################
 
+logMain("Prepare")
+
+imageBase = idaapi.get_imagebase()
+# imageBaseStr = "ImageBase0x%X" % imageBase
+print("Image Base: 0x%X = %d" % (imageBase, imageBase))
+
 idaVersion = idaapi.IDA_SDK_VERSION
-print("idaVersion=%s" % idaVersion)
+print("IDA Version: %s" % idaVersion)
 
-inputFilename = get_root_filename()
-# print("inputFilename=%s" % inputFilename)
+idaRootFilename = ida_nalt.get_root_filename()
+print("IDA root filename: %s" % idaRootFilename)
 
-IS32BIT = not idaapi.get_inf_structure().is_64bit()
+is32Bit = ida_ida.inf_is_32bit_exactly()
+print("is32Bit=%s" % is32Bit)
 
-IS_MAC = 'X86_64' in idaapi.get_file_type_name()
+fileTypeName = idaapi.get_file_type_name()
+print("fileTypeName=%s" % fileTypeName)
 
-platformStr = ("Mac" if IS_MAC else "iOS")
+isMac = 'X86_64' in fileTypeName
+print("isMac=%s" % isMac)
+
+platformStr = ("Mac" if isMac else "iOS")
+print("platformStr=%s" % platformStr)
+
 # print "Start analyze binary for " + platformStr
-print("Start scan ObjC block symbols for %s on %s from IDA v%s" % (inputFilename, platformStr, idaVersion))
+# print("Start scan ObjC block symbols for %s on %s from IDA v%s" % (idaRootFilename, platformStr, idaVersion))
+logMain("Start scan ObjC block symbols")
 
 # generate output file name
 # outputFilename = "block_symbol"
 outputFilename = "blockSymbolsRenamed"
-outputFullFilename = "%s_%s_%s.json" % (inputFilename, outputFilename, getCurDatetimeStr())
+outputFullFilename = "%s_%s_%s.json" % (idaRootFilename, outputFilename, getCurDatetimeStr())
 # print("outputFullFilename=%s" % outputFullFilename)
+
+if isExportToFile:
+  if not outputFolder:
+    outputFolder = ida_getCurrentFolder()
+    print("outputFolder=%s" % outputFolder)
 
 if not outputFolder:
   inputFileFullPath = ida_nalt.get_input_file_path()
@@ -130,7 +197,12 @@ if not outputFolder:
     outputFolder = os.path.dirname(inputFileFullPath)
   print("outputFolder=%s" % outputFolder)
 
-print("%s Processing %s" % ("="*40, "="*40))
+if isExportToFile:
+  if not outputFolder:
+    outputFolder = ida_getCurrentFolder()
+    print("outputFolder=%s" % outputFolder)
+
+logMain("Processing")
 
 def isInText(x):
     # return SegName(x) == '__text'
@@ -147,8 +219,8 @@ AllGlobalBlockMap = {}
 for struct in list(DataRefsTo(GlobalBlockAddr)):
     # func = 0L
     func = 0
-    FUNC_OFFSET_IN_BLOCK = 12 if IS32BIT else 16
-    if IS32BIT:
+    FUNC_OFFSET_IN_BLOCK = 12 if is32Bit else 16
+    if is32Bit:
         # func = Dword(struct + FUNC_OFFSET_IN_BLOCK)
         func = get_wide_dword(struct + FUNC_OFFSET_IN_BLOCK)
     else:
@@ -213,7 +285,7 @@ def superFuncForStackBlock(block_func):
     if len(superFuncs) != 1:
         return None
     super_func_addr = superFuncs[0]
-    if IS_MAC:
+    if isMac:
         return super_func_addr
     else:
         # return super_func_addr | GetReg(super_func_addr, "T") # thumb
@@ -275,7 +347,7 @@ def findBlockName(block_func):
             # return ""
             retFuncName = ""
         else:
-            if not IS_MAC:
+            if not isMac:
                 # superBlockFuncAddr = superBlockFuncAddr | GetReg(superBlockFuncAddr, "T") # thumb
                 superBlockFuncAddr = superBlockFuncAddr | get_sreg(superBlockFuncAddr, "T") # thumb
                 
@@ -299,7 +371,7 @@ def findBlockName(block_func):
 #find all possible Stack Block 
 allPossibleStackBlockFunc = []
 allRefToBlock=[]
-if IS32BIT:
+if is32Bit:
     # allRefToBlock = list(DataRefsTo(LocByName("__NSConcreteStackBlock")))
     allRefToBlock = list(DataRefsTo(get_name_ea_simple("__NSConcreteStackBlock")))
 else:
@@ -360,8 +432,7 @@ for addr in resultDict:
 
     blockSymbolDictList += [{"address":("0x%X" % addr), "name":name}]
 
-
-print("%s post process: rename for same address %s" % ("-"*30, "-"*30))
+logSub("post process: rename for same address")
 
 # eg:
 #   -[XMPPSocket connect]_block -> -[XMPPSocket connect]_block_1
@@ -416,7 +487,7 @@ blockSymbolDictList = sorted(blockSymbolDictList, key=lambda eachDict: int(eachD
 
 blockSymbolNum = len(blockSymbolDictList)
 
-print("%s Summary Info %s" % ("="*40, "="*40))
+logMain("Summary Info")
 
 globalBlockNum = len(AllGlobalBlockMap)
 stackBlockNum = len(allRefToBlock)
@@ -428,7 +499,7 @@ print("    Stack block number: %d" % stackBlockNum)
 
 
 if isExportToFile:
-  print("%s export to file %s" % ("="*40, "="*40))
+  logMain("Export to file")
 
   print("Exporting %d block symbol to" % blockSymbolNum)
   print("  folder: %s" % outputFolder)
@@ -446,7 +517,7 @@ if isExportToFile:
 # isLogVerbose = True
 
 if enableWriteback:
-  print("%s Writeback/Rename IDA block symbol %s" % ("="*40, "="*40))
+  logMain("Writeback/Rename IDA block symbol")
 
   renameCount = 0
   renameOkCount = 0
